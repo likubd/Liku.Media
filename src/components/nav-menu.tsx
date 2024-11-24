@@ -54,10 +54,10 @@ const components: { title: string; href: string; description: string }[] = [
 
 export default function NavigationMenuDemo() {
   return (
-    <NavigationMenu>
+    <NavigationMenu className="hidden sm:block">
       <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuTrigger>Service</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="bg-inherit">Service</NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
               <li className="row-span-3">
@@ -89,7 +89,7 @@ export default function NavigationMenuDemo() {
           </NavigationMenuContent>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="bg-inherit">Products</NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
               {components.map((component) => (
@@ -106,7 +106,7 @@ export default function NavigationMenuDemo() {
         </NavigationMenuItem>
         <NavigationMenuItem>
           <Link href="/docs" legacyBehavior passHref>
-            <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+            <NavigationMenuLink className={`${navigationMenuTriggerStyle()} bg-inherit`}>
               Training
             </NavigationMenuLink>
           </Link>
