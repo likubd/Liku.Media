@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { AlignLeftIcon, Minus, Plus } from "lucide-react"
+import { AlignLeftIcon, Facebook, Youtube } from "lucide-react"
  
-import { Button } from "@/components/ui/button"
+import { RainbowButton } from './ui/rainbow-button'
 import {
   Drawer,
   DrawerClose,
@@ -14,6 +14,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
+import Link from "next/link"
 
 export default function DrawerDemo() {
   const [goal, setGoal] = React.useState(350)
@@ -33,48 +34,27 @@ export default function DrawerDemo() {
       <DrawerContent>
         <div className="mx-auto w-full max-w-sm">
           <DrawerHeader>
-            <DrawerTitle>Move Goal</DrawerTitle>
-            <DrawerDescription>Set your daily activity goal.</DrawerDescription>
+            <DrawerTitle>Liku.Media</DrawerTitle>
+            <DrawerDescription>a print & online media</DrawerDescription>
           </DrawerHeader>
-          <div className="p-4 pb-0">
-            <div className="flex items-center justify-center space-x-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-full"
-                onClick={() => onClick(-10)}
-                disabled={goal <= 200}
-              >
-                <Minus />
-                <span className="sr-only">Decrease</span>
-              </Button>
-              <div className="flex-1 text-center">
-                <div className="text-7xl font-bold tracking-tighter">
-                  {goal}
-                </div>
-                <div className="text-[0.70rem] uppercase text-muted-foreground">
-                  Calories/day
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-full"
-                onClick={() => onClick(10)}
-                disabled={goal >= 400}
-              >
-                <Plus />
-                <span className="sr-only">Increase</span>
-              </Button>
-            </div>
-            <div className="mt-3 h-[120px]">
-              
-            </div>
+          <div className="grid">
+          <DrawerClose asChild>
+            <Link href="/" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Home</Link>
+          </DrawerClose>
+          <DrawerClose asChild>
+          <Link href="/docs" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Docs</Link>
+          </DrawerClose>
+          <DrawerClose asChild>
+          <Link href="/docs" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Service</Link>
+          </DrawerClose>
           </div>
           <DrawerFooter>
-            <Button>Submit</Button>
+          <div className="flex gap-4 mb-4">
+          <a href='https://fb.com/liku.media' target='_blank' className='p-2 bg-slate-800 hover:bg-slate-700 rounded-3xl'><Facebook size={22} strokeWidth={1.2}/></a>
+          <a href='https://www.youtube.com/@LikuMedia' target='_blank' className='p-2 bg-slate-800 hover:bg-slate-700 rounded-3xl'><Youtube size={22} strokeWidth={1.2}/></a>
+          </div>
             <DrawerClose asChild>
-              <Button variant="outline">Cancel</Button>
+            <Link href="/contact"><RainbowButton className='w-full font-bold p-4'>Get Started</RainbowButton></Link>
             </DrawerClose>
           </DrawerFooter>
         </div>

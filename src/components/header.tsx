@@ -20,8 +20,8 @@ export default function header() {
         </div>
         <div className='flex gap-1 items-center'>
             <Link href="/contact"><RainbowButton className='me-3 font-bold p-4'>Get Started</RainbowButton></Link>
-            <a href='https://fb.com/liku.media' target='_blank' className='p-1'><Facebook size={22} strokeWidth={1.2}/></a>
-            <a href='https://www.youtube.com/@LikuMedia' target='_blank' className='p-1 me-2'><Youtube size={22} strokeWidth={1.2}/></a>
+            <a href='https://fb.com/liku.media' target='_blank' className='p-1 hidden sm:block'><Facebook size={22} strokeWidth={1.2}/></a>
+            <a href='https://www.youtube.com/@LikuMedia' target='_blank' className='p-1 me-2 hidden sm:block'><Youtube size={22} strokeWidth={1.2}/></a>
             <ThemeToggle/>
         </div>
     </div>
