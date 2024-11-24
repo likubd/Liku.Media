@@ -10,10 +10,10 @@ import { Facebook, Youtube } from 'lucide-react'
 
 export default function header() {
   return (
-    <div className='flex items-center justify-between sticky top-0 bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl lg:px-6 px-2 py-2 z-50'>
+    <div className='flex items-center justify-between sticky top-0 bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl lg:px-6 px-2 py- z-50'>
         <div className='flex items-center'>
         <MobileMenu/>
-        <Link href="/"><Image src={Logo} alt='Liku.Media' className='mb-3 ms-2'/></Link>
+        <Link href="/"><Image src={Logo} alt='Liku.Media' className='mb-2 ms-2'/></Link>
         </div>
         <div>
             <Menu/>

@@ -32,7 +32,7 @@ export default function DrawerDemo() {
          </button>
        </DrawerTrigger>
       <DrawerContent>
-        <div className="mx-auto w-full max-w-sm">
+        <div className="mx-auto w-full max-w-sm px-4">
           <DrawerHeader>
             <DrawerTitle>Liku.Media</DrawerTitle>
             <DrawerDescription>a print & online media</DrawerDescription>
@@ -50,8 +50,8 @@ export default function DrawerDemo() {
           </div>
           <DrawerFooter>
           <div className="flex gap-4 mb-4">
-          <a href='https://fb.com/liku.media' target='_blank' className='p-2 bg-slate-800 hover:bg-slate-700 rounded-3xl'><Facebook size={22} strokeWidth={1.2}/></a>
-          <a href='https://www.youtube.com/@LikuMedia' target='_blank' className='p-2 bg-slate-800 hover:bg-slate-700 rounded-3xl'><Youtube size={22} strokeWidth={1.2}/></a>
+          <a href='https://fb.com/liku.media' target='_blank' className='p-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-500 rounded-3xl'><Facebook size={22} strokeWidth={1.2}/></a>
+          <a href='https://www.youtube.com/@LikuMedia' target='_blank' className='p-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-500 rounded-3xl'><Youtube size={22} strokeWidth={1.2}/></a>
           </div>
             <DrawerClose asChild>
             <Link href="/contact"><RainbowButton className='w-full font-bold p-4'>Get Started</RainbowButton></Link>
