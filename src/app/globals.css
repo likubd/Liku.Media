@@ -14,31 +14,31 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --background: 24 15% 94%; /* Warm Off-White (#f1eeeb) */
+    --foreground: 0 0% 0%;    /* Deep Black */
+    --card: 24 15% 91%;
+    --card-foreground: 0 0% 0%;
+    --popover: 24 15% 94%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 344 83% 50%;   /* Logo Pink/Rose (#e11d48) */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 10% 86%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 24 10% 86%;
+    --muted-foreground: 24 5% 35%;
+    --accent: 45 93% 47%;    /* Logo Yellow (#eab308) */
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 24 10% 80%;
+    --input: 24 10% 80%;
+    --ring: 344 83% 50%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --radius: 0rem; /* Sharp corners like co.design */
     --color-1: 0 100% 63%;
     --color-2: 270 100% 63%;
     --color-3: 210 100% 63%;
@@ -46,25 +46,25 @@ body {
     --color-5: 90 100% 63%;
   }
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 0 0% 0%;    /* Deep Black */
+    --foreground: 24 15% 94%; /* Warm Off-White (#f1eeeb) */
+    --card: 0 0% 3%;
+    --card-foreground: 24 15% 94%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 24 15% 94%;
+    --primary: 330 81% 60%;   /* Logo Pink/Rose in Dark Mode (#ec4899) */
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 24 15% 94%;
+    --muted: 0 0% 8%;
+    --muted-foreground: 24 5% 65%;
+    --accent: 45 93% 47%;    /* Logo Yellow (#eab308) */
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 330 81% 60%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -86,3 +86,48 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animation-delay-100 {
+  animation-delay: 100ms;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-300 {
+  animation-delay: 300ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+@keyframes rotate-earth {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -2048px 0;
+  }
+}
+
+.animate-rotate-earth {
+  animation: rotate-earth 80s linear infinite;
+}
+

@@ -16,39 +16,34 @@ import {
 
 const components: { title: string; href: string; description: string }[] = [
   {
-    title: "Alert Dialog",
-    href: "/docs/primitives/alert-dialog",
-    description:
-      "A modal dialog that interrupts the user with important content and expects a response.",
+    title: "Graphics Design",
+    href: "/#services",
+    description: "Professional branding, logos, flyers, and digital design.",
   },
   {
-    title: "Hover Card",
-    href: "/docs/primitives/hover-card",
-    description:
-      "For sighted users to preview content available behind a link.",
+    title: "Printing Services",
+    href: "/#services",
+    description: "High-quality offset, digital, and custom print solutions.",
   },
   {
-    title: "Progress",
-    href: "/docs/primitives/progress",
-    description:
-      "Displays an indicator showing the completion progress of a task, typically displayed as a progress bar.",
+    title: "UI/UX Design",
+    href: "/#services",
+    description: "Modern, user-centric interface and user experience designs.",
   },
   {
-    title: "Scroll-area",
-    href: "/docs/primitives/scroll-area",
-    description: "Visually or semantically separates content.",
+    title: "Software & Mobile Apps",
+    href: "/#services",
+    description: "Custom desktop apps, iOS, and Android application development.",
   },
   {
-    title: "Tabs",
-    href: "/docs/primitives/tabs",
-    description:
-      "A set of layered sections of content—known as tab panels—that are displayed one at a time.",
+    title: "Website Development",
+    href: "/#services",
+    description: "Responsive business websites and web portals.",
   },
   {
-    title: "Tooltip",
-    href: "/docs/primitives/tooltip",
-    description:
-      "A popup that displays information related to an element when the element receives keyboard focus or the mouse hovers over it.",
+    title: "Accounting & ERP",
+    href: "/#services",
+    description: "Integrated financial and enterprise resource planning software.",
   },
 ]
 
@@ -57,7 +52,7 @@ export default function NavigationMenuDemo() {
     <NavigationMenu className="hidden sm:block">
       <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="bg-inherit">Service</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="bg-transparent text-neutral-300 hover:text-primary data-[state=open]:text-primary transition-all duration-300 text-xs sm:text-sm font-bold uppercase tracking-[0.2em] px-4 py-2">Services</NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
               <li className="row-span-3">
@@ -67,29 +62,28 @@ export default function NavigationMenuDemo() {
                     href="/"
                   >
                     <div className="mb-2 mt-4 text-lg font-medium">
-                      shadcn/ui
+                      Liku.Media
                     </div>
                     <p className="text-sm leading-tight text-muted-foreground">
-                      Beautifully designed components built with Radix UI and
-                      Tailwind CSS.
+                      A print & online media. Delivering premium graphics, printing, software, and web solutions.
                     </p>
                   </a>
                 </NavigationMenuLink>
               </li>
-              <ListItem href="/docs" title="Introduction">
-                Re-usable components built using Radix UI and Tailwind CSS.
+              <ListItem href="/#services" title="Print & Media">
+                Graphics design, printing, and UI/UX design services.
               </ListItem>
-              <ListItem href="/docs/installation" title="Installation">
-                How to install dependencies and structure your app.
+              <ListItem href="/#services" title="Software & Apps">
+                Custom software, mobile applications, and web development.
               </ListItem>
-              <ListItem href="/docs/primitives/typography" title="Typography">
-                Styles for headings, paragraphs, lists...etc
+              <ListItem href="/#services" title="Business Solutions">
+                Integrated accounting software and ERP systems.
               </ListItem>
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="bg-inherit">Products</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="bg-transparent text-neutral-300 hover:text-primary data-[state=open]:text-primary transition-all duration-300 text-xs sm:text-sm font-bold uppercase tracking-[0.2em] px-4 py-2">Digital Services</NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
               {components.map((component) => (
@@ -105,9 +99,9 @@ export default function NavigationMenuDemo() {
           </NavigationMenuContent>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link href="/docs" legacyBehavior passHref>
-            <NavigationMenuLink className={`${navigationMenuTriggerStyle()} bg-inherit`}>
-              Training
+          <Link href="/contact" legacyBehavior passHref>
+            <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center bg-transparent px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-[0.2em] text-neutral-300 transition-all duration-300 hover:text-primary focus:text-primary outline-none">
+              Contact
             </NavigationMenuLink>
           </Link>
         </NavigationMenuItem>
