@@ -70,7 +70,7 @@ export default function ProjectsPage() {
     : pastProjects.filter(p => p.category === activeCategory);
 
   return (
-    <div className="relative min-h-screen bg-black text-white py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div className="relative min-h-screen bg-black text-white pt-36 sm:pt-40 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Background Starry Space Glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(234,179,8,0.06),transparent_60%)] pointer-events-none" />
 

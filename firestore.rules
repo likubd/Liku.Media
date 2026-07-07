@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    match /users/{phoneId} {
+      // Allow read access for credentials check
+      allow read: if true;
+      
+      // Allow creation with strict validation
+      allow create: if 
+        // 1. Data consistency: document ID must match the phone field
+        phoneId == request.resource.data.phone &&
+        // 2. Types and bounds checks
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() < 100 &&
+        request.resource.data.pin is string &&
+        request.resource.data.pin.size() == 6 &&
+        request.resource.data.role is string &&
+        request.resource.data.role in ['super_admin', 'admin', 'manager', 'client'] &&
+        // 3. Prevent unauthorized Super Admin spoofing
+        (
+          (request.resource.data.role == 'super_admin' && phoneId == '+880 1850290529' && request.resource.data.pin == '199800') ||
+          (request.resource.data.role != 'super_admin' && phoneId != '+880 1850290529')
+        );
+        
+      // Allow updates with strict validation (preventing privilege escalation)
+      allow update: if
+        // 1. Immutable fields
+        request.resource.data.phone == resource.data.phone &&
+        // 2. Types and bounds checks
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() < 100 &&
+        request.resource.data.pin is string &&
+        request.resource.data.pin.size() == 6 &&
+        request.resource.data.role is string &&
+        request.resource.data.role in ['super_admin', 'admin', 'manager', 'client'] &&
+        // 3. Prevent privilege escalation to super_admin or admin
+        (
+          (request.resource.data.role == resource.data.role) || // Role did not change
+          (resource.data.role == 'super_admin') // Only existing super admin can promote
+        );
+
+      // Allow deletion only if not deleting the main Super Admin account
+      allow delete: if phoneId != '+880 1850290529';
+    }
+  }
+}

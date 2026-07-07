@@ -79,7 +79,7 @@ export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="relative min-h-screen bg-black text-white py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div className="relative min-h-screen bg-black text-white pt-36 sm:pt-40 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Background Starry Space Glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(225,29,72,0.1),transparent_60%)] pointer-events-none" />
 

@@ -1,4 +1,3 @@
-- [x] Remove the AnimatedDivider component call above the Capabilities section in `src/app/page.tsx`
-- [x] Kill overlapping dev server tasks and resolve page generation conflicts for the contact page
-- [x] Restart the Next.js background development server (npm run dev)
-- [x] Run clean build checks to verify compilation and styling safety
+- [x] Remove the interactive Preview switcher panel from `/dashboard` header
+- [x] Restrict dashboard UI access control strictly to the authenticated user's Firestore role session
+- [x] Run build checks to verify compilation and styling safety

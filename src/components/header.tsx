@@ -29,7 +29,7 @@ export default function Header() {
 
   const showCapsule = isScrolled || !isHomePage;
 
-  if (pathname === '/login') return null;
+  if (pathname === '/login' || pathname === '/dashboard') return null;
 
   return (
     <motion.div 
@@ -52,12 +52,12 @@ export default function Header() {
             <Image 
               src={Logo} 
               alt='Liku.Media' 
-              className='h-8 sm:h-9 w-auto object-contain' 
+              className='h-11 md:h-12 w-auto object-contain -translate-y-[3px] md:translate-y-0 transition-all duration-300' 
               priority
             />
           </Link>
         </div>
-        <div className='flex items-center gap-4 sm:gap-6 lg:gap-8'>
+        <div className='flex items-center gap-4 md:gap-6 lg:gap-8'>
           <Menu isScrolled={showCapsule} />
           <div className='flex gap-3 items-center'>
               {/* Rotating Gradient Border Button */}
@@ -71,7 +71,7 @@ export default function Header() {
                 />
                 
                 {/* Inner Content with Gradient Background */}
-                <span className="relative z-10 w-full h-full px-6 rounded-full flex items-center justify-center bg-black dark:bg-[#0a0a0a] group-hover:bg-gradient-to-r group-hover:from-[#e11d48] group-hover:to-[#eab308] text-[10px] sm:text-xs font-black uppercase tracking-wider text-white transition-all duration-300">
+                <span className="relative z-10 w-full h-full px-6 rounded-full flex items-center justify-center bg-black dark:bg-[#0a0a0a] group-hover:bg-gradient-to-r group-hover:from-[#e11d48] group-hover:to-[#eab308] text-[10px] md:text-xs font-black uppercase tracking-wider text-white transition-all duration-300">
                   START A PROJECT
                 </span>
               </Link>
@@ -79,7 +79,7 @@ export default function Header() {
               <a 
                 href='https://fb.com/liku.media' 
                 target='_blank' 
-                className={`p-1.5 hidden sm:block hover:scale-110 transition-all duration-300 ${
+                className={`p-1.5 hidden md:block hover:scale-110 transition-all duration-300 ${
                   showCapsule 
                     ? 'text-neutral-600 dark:text-white/70 hover:text-primary dark:hover:text-primary' 
                     : 'text-neutral-900 hover:text-[#e11d48]'
@@ -90,7 +90,7 @@ export default function Header() {
               <a 
                 href='https://www.youtube.com/@LikuMedia' 
                 target='_blank' 
-                className={`p-1.5 me-1 hidden sm:block hover:scale-110 transition-all duration-300 ${
+                className={`p-1.5 me-1 hidden md:block hover:scale-110 transition-all duration-300 ${
                   isScrolled 
                     ? 'text-neutral-600 dark:text-white/70 hover:text-primary dark:hover:text-primary' 
                     : 'text-neutral-900 hover:text-[#e11d48]'

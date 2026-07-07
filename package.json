@@ -17,6 +17,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cobe": "^0.6.3",
+    "firebase": "^12.15.0",
     "lucide-react": "^0.460.0",
     "motion": "^12.42.2",
     "next": "14.2.17",

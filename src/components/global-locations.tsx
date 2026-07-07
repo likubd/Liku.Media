@@ -48,7 +48,7 @@ const menuSections = [
 
 export default function GlobalLocations() {
   const pathname = usePathname();
-  if (pathname === '/login') return null;
+  if (pathname === '/login' || pathname === '/dashboard') return null;
 
   return (
     <div className="relative w-full overflow-hidden bg-black text-white py-24 sm:py-32 border-t border-white/5">

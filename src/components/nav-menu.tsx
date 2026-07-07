@@ -57,7 +57,7 @@ export default function NavigationMenuDemo({ isScrolled = false }: NavigationMen
     : "text-black";
 
   return (
-    <NavigationMenu className="hidden sm:block">
+    <NavigationMenu className="hidden md:block">
       <NavigationMenuList className="gap-2">
         {/* Projects Link */}
         <NavigationMenuItem>
