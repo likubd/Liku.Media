@@ -1,7 +1,6 @@
 import { ThemeProvider } from "@/components/theme-provider"
 import Header from '@/components/header'
 import GlobalLocations from '@/components/global-locations'
-import Footer from '@/components/footer'
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -39,7 +38,6 @@ export default function RootLayout({
             <Header/>
             {children}
             <GlobalLocations/>
-            <Footer/>
           </ThemeProvider>      
       </body>
     </html>

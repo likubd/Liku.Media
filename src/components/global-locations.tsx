@@ -1,19 +1,55 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { ArrowDown } from "lucide-react";
+import { usePathname } from "next/navigation";
 
-const locations = [
-  { country: "United States", address: "16 Cove Road, Mount Arlington, NJ 07856" },
-  { country: "Australia", address: "155 Bennett Rd, St Clair NSW 2759" },
-  { country: "South Africa", address: "55 Mons Rd, Bellevue East, Johannesburg, 2198" },
-  { country: "Singapore", address: "6 Raffles Blvd, Marina Square" },
-  { country: "Italy", address: "Via Bari, 9, 03043 Cassino, FR" },
-  { country: "Dubai", address: "AlFattan Downtown - 32d St - Al Satwa" },
-  { country: "Cyprus", address: "Estias 5, Strovolos 2001" },
-  { country: "Bangladesh", address: "Ventura Iconia, Plot 37 Road No. 11, Banani, Dhaka 1213" },
+const menuSections = [
+  {
+    title: "Important Links",
+    links: [
+      { name: "Contact Us", href: "/contact" },
+      { name: "About Us", href: "/#services" },
+      { name: "Products", href: "/#services" },
+      { name: "Industry", href: "/#services" },
+      { name: "Blogs", href: "/#services" },
+    ]
+  },
+  {
+    title: "Services",
+    links: [
+      { name: "UI/UX Design", href: "/#services" },
+      { name: "Web Design", href: "/#services" },
+      { name: "Logo & Branding", href: "/#services" },
+      { name: "Webflow Design", href: "/#services" },
+      { name: "Framer Design", href: "/#services" },
+    ]
+  },
+  {
+    title: "Specialized Industry",
+    links: [
+      { name: "Fintech Industry", href: "/#services" },
+      { name: "Healthcare & Fitness Industry", href: "/#services" },
+      { name: "Edtech Industry", href: "/#services" },
+      { name: "Cybersecurity Industry", href: "/#services" },
+      { name: "Company Deck", href: "/#services", isDeck: true },
+    ]
+  },
+  {
+    title: "Compare",
+    links: [
+      { name: "Vs Agencies", href: "/#services" },
+      { name: "Vs Freelancers", href: "/#services" },
+      { name: "Vs Inhouse", href: "/#services" },
+    ]
+  }
 ];
 
 export default function GlobalLocations() {
+  const pathname = usePathname();
+  if (pathname === '/login') return null;
+
   return (
     <div className="relative w-full overflow-hidden bg-black text-white py-24 sm:py-32 border-t border-white/5">
       {/* Background Starry Space Glow */}
@@ -34,8 +70,8 @@ export default function GlobalLocations() {
         <div 
           className="absolute inset-0 pointer-events-none" 
           style={{
-            background: "radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.25) 0%, rgba(0, 0, 0, 0.4) 40%, rgba(0, 0, 0, 0.9) 70%, rgba(0, 0, 0, 1) 100%)",
-            boxShadow: "inset 0 40px 120px rgba(14, 165, 233, 0.5), inset 0 -30px 120px rgba(0, 0, 0, 0.95)",
+            background: "radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.2) 0%, rgba(0, 0, 0, 0.4) 40%, rgba(0, 0, 0, 0.95) 75%, rgba(0, 0, 0, 1) 100%)",
+            boxShadow: "inset 0 40px 120px rgba(14, 165, 233, 0.45), inset 0 -30px 120px rgba(0, 0, 0, 0.95)",
           }}
         />
       </div>
@@ -44,32 +80,50 @@ export default function GlobalLocations() {
       <div className="absolute top-[28%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] sm:w-[800px] sm:h-[800px] md:w-[1000px] md:h-[1000px] rounded-full pointer-events-none -z-20 bg-transparent shadow-[0_-40px_140px_30px_rgba(14,165,233,0.35)]" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 z-10">
-        {/* Section Title */}
-        <div className="text-center mb-20 space-y-3">
-          <span className="text-xs font-bold uppercase tracking-[0.25em] text-neutral-500">[ Global Presence ]</span>
-          <h2 className="text-3xl font-extrabold uppercase tracking-tight sm:text-4xl">
-            Our Digital Footprint
-          </h2>
-          <p className="text-sm text-neutral-400 max-w-md mx-auto font-light">
-            Empowering brands across the globe from our interconnected digital hubs.
-          </p>
+
+        {/* 4-Column Animated Menus Grid in a Glassmorphic Panel */}
+        <div className="p-8 sm:p-12 bg-white/[0.01] backdrop-blur-md border border-white/5 rounded-3xl shadow-2xl">
+          <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
+            {menuSections.map((section, idx) => (
+              <div key={idx} className="space-y-6 text-left">
+                <h3 className="text-sm font-extrabold uppercase tracking-[0.2em] text-white">
+                  {section.title}
+                </h3>
+                <ul className="space-y-4">
+                  {section.links.map((link, lIdx) => (
+                    <li key={lIdx}>
+                      <Link 
+                        href={link.href}
+                        className="group inline-flex items-center text-sm text-neutral-400 hover:text-primary transition-all duration-300 transform hover:translate-x-2"
+                      >
+                        <span>{link.name}</span>
+                        {link.isDeck && (
+                          <span className="ml-2 inline-flex items-center justify-center size-5 rounded-full bg-primary/20 text-primary transition-transform duration-300 group-hover:translate-y-0.5">
+                            <ArrowDown className="size-3 stroke-[2.5]" />
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Location Cards (iPhone glass style) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-          {locations.map((loc, idx) => (
-            <div 
-              key={idx}
-              className="flex flex-col items-center justify-center text-center p-6 bg-white/[0.02] backdrop-blur-md border border-white/10 rounded-2xl hover:border-primary/40 hover:bg-white/[0.04] transition-all duration-300 hover:scale-[1.02] group shadow-lg"
-            >
-              <h3 className="text-base font-bold text-white mb-2 tracking-wide uppercase transition-colors group-hover:text-primary">
-                {loc.country}
-              </h3>
-              <p className="text-[11px] text-neutral-400 leading-relaxed font-light max-w-[190px]">
-                {loc.address}
-              </p>
-            </div>
-          ))}
+        {/* Bottom Compliance & Copyright Row (since main Footer is removed) */}
+        <div className="border-t border-white/5 mt-16 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
+          <div>
+            © {new Date().getFullYear()}, Liku Media. All Rights Reserved.
+          </div>
+          <div className="flex gap-6">
+            <Link href="/" className="hover:text-primary transition-colors duration-300">
+              Terms & Conditions
+            </Link>
+            <Link href="/" className="hover:text-primary transition-colors duration-300">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       </div>
     </div>

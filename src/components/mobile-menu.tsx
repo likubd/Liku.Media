@@ -41,10 +41,16 @@ export default function DrawerDemo() {
             <Link href="/" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Home</Link>
           </DrawerClose>
           <DrawerClose asChild>
-          <Link href="/#services" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Services</Link>
+            <Link href="/projects" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Projects</Link>
           </DrawerClose>
           <DrawerClose asChild>
-          <Link href="/contact" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Contact</Link>
+            <Link href="/#services" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Services</Link>
+          </DrawerClose>
+          <DrawerClose asChild>
+            <Link href="/pricing" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Pricing</Link>
+          </DrawerClose>
+          <DrawerClose asChild>
+            <Link href="/contact" className="p-3 hover:bg-slate-800 active:bg-slate-700 rounded">Contact</Link>
           </DrawerClose>
           </div>
           <DrawerFooter>

@@ -1,0 +1,4 @@
+- [x] Remove the AnimatedDivider component call above the Capabilities section in `src/app/page.tsx`
+- [x] Kill overlapping dev server tasks and resolve page generation conflicts for the contact page
+- [x] Restart the Next.js background development server (npm run dev)
+- [x] Run clean build checks to verify compilation and styling safety

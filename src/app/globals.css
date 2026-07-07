@@ -14,19 +14,23 @@ body {
 
 @layer base {
   :root {
-    --background: 24 15% 94%; /* Warm Off-White (#f1eeeb) */
-    --foreground: 0 0% 0%;    /* Deep Black */
+    --background: 24 15% 94%;
+    /* Warm Off-White (#f1eeeb) */
+    --foreground: 0 0% 0%;
+    /* Deep Black */
     --card: 24 15% 91%;
     --card-foreground: 0 0% 0%;
     --popover: 24 15% 94%;
     --popover-foreground: 0 0% 0%;
-    --primary: 344 83% 50%;   /* Logo Pink/Rose (#e11d48) */
+    --primary: 344 83% 50%;
+    /* Logo Pink/Rose (#e11d48) */
     --primary-foreground: 0 0% 100%;
     --secondary: 24 10% 86%;
     --secondary-foreground: 0 0% 0%;
     --muted: 24 10% 86%;
     --muted-foreground: 24 5% 35%;
-    --accent: 45 93% 47%;    /* Logo Yellow (#eab308) */
+    --accent: 45 93% 47%;
+    /* Logo Yellow (#eab308) */
     --accent-foreground: 0 0% 0%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -38,27 +42,33 @@ body {
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0rem; /* Sharp corners like co.design */
+    --radius: 0rem;
+    /* Sharp corners like co.design */
     --color-1: 0 100% 63%;
     --color-2: 270 100% 63%;
     --color-3: 210 100% 63%;
     --color-4: 195 100% 63%;
     --color-5: 90 100% 63%;
   }
+
   .dark {
-    --background: 0 0% 0%;    /* Deep Black */
-    --foreground: 24 15% 94%; /* Warm Off-White (#f1eeeb) */
+    --background: 0 0% 0%;
+    /* Deep Black */
+    --foreground: 24 15% 94%;
+    /* Warm Off-White (#f1eeeb) */
     --card: 0 0% 3%;
     --card-foreground: 24 15% 94%;
     --popover: 0 0% 0%;
     --popover-foreground: 24 15% 94%;
-    --primary: 330 81% 60%;   /* Logo Pink/Rose in Dark Mode (#ec4899) */
+    --primary: 330 81% 60%;
+    /* Logo Pink/Rose in Dark Mode (#ec4899) */
     --primary-foreground: 0 0% 0%;
     --secondary: 0 0% 8%;
     --secondary-foreground: 24 15% 94%;
     --muted: 0 0% 8%;
     --muted-foreground: 24 5% 65%;
-    --accent: 45 93% 47%;    /* Logo Yellow (#eab308) */
+    --accent: 45 93% 47%;
+    /* Logo Yellow (#eab308) */
     --accent-foreground: 0 0% 0%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
@@ -82,6 +92,7 @@ body {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -92,6 +103,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -122,6 +134,7 @@ body {
   from {
     background-position: 0 0;
   }
+
   to {
     background-position: -2048px 0;
   }
@@ -131,3 +144,56 @@ body {
   animation: rotate-earth 80s linear infinite;
 }
 
+@keyframes block-reveal {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  50% {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  50.1% {
+    transform-origin: right;
+  }
+  100% {
+    transform: scaleX(0);
+    transform-origin: right;
+  }
+}
+
+@keyframes text-reveal {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0;
+  }
+  50.1% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-block-reveal {
+  animation: block-reveal 1.8s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+}
+
+.animate-text-reveal {
+  animation: text-reveal 1.8s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+}
+
+@keyframes border-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-border-spin {
+  animation: border-spin 4s linear infinite;
+}
