@@ -8,6 +8,7 @@ import Logo from "@/components/img/likumedia-logo.svg";
 import { db } from "@/lib/firebase";
 import { collection, doc, setDoc, query, where, getDocs } from "firebase/firestore";
 import { ArrowLeft, Lock, ShieldCheck } from "lucide-react";
+import { gsap } from "gsap";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +20,11 @@ export default function LoginPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Animation Refs
+  const formWrapperRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
+
   // Refs for the 6-digit input fields
   const inputRefs = [
     useRef<HTMLInputElement>(null),
@@ -29,8 +35,48 @@ export default function LoginPage() {
     useRef<HTMLInputElement>(null),
   ];
 
-  // Auto-focus first input when entering Step 2
+  // GSAP Initial Entry Animations
   useEffect(() => {
+    // 1. Entrance animation for the login container and logo
+    if (formWrapperRef.current) {
+      gsap.fromTo(
+        formWrapperRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 1.2, ease: "power4.out" }
+      );
+    }
+
+    if (logoRef.current) {
+      gsap.fromTo(
+        logoRef.current,
+        { scale: 0.8, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 1, delay: 0.2, ease: "back.out(1.7)" }
+      );
+    }
+
+    // 2. Cosmic glow slow breathing effect
+    if (glowRef.current) {
+      gsap.fromTo(
+        glowRef.current,
+        { opacity: 0.3, scale: 0.9 },
+        { opacity: 0.7, scale: 1.1, duration: 4, repeat: -1, yoyo: true, ease: "sine.inOut" }
+      );
+    }
+  }, []);
+
+  // GSAP Transition on Step Changes
+  useEffect(() => {
+    if (formWrapperRef.current) {
+      const formElement = formWrapperRef.current.querySelector("form");
+      if (formElement) {
+        gsap.fromTo(
+          formElement,
+          { opacity: 0, x: 20 },
+          { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }
+        );
+      }
+    }
+
     if (step === 2 && inputRefs[0].current) {
       setTimeout(() => {
         inputRefs[0].current?.focus();
@@ -97,6 +143,15 @@ export default function LoginPage() {
 
         if (userData.pin !== pinString) {
           setError("Security PIN mismatch. Access denied.");
+          
+          // GSAP Shake animation on error!
+          if (formWrapperRef.current) {
+            gsap.fromTo(
+              formWrapperRef.current,
+              { x: -10 },
+              { x: 0, duration: 0.5, ease: "elastic.out(1, 0.3)" }
+            );
+          }
           setIsSubmitting(false);
           return;
         }
@@ -112,6 +167,15 @@ export default function LoginPage() {
           // Validate requested PIN
           if (pinString !== "199800") {
             setError("Incorrect security PIN for seeding. Access denied.");
+            
+            // GSAP Shake animation on error!
+            if (formWrapperRef.current) {
+              gsap.fromTo(
+                formWrapperRef.current,
+                { x: -10 },
+                { x: 0, duration: 0.5, ease: "elastic.out(1, 0.3)" }
+              );
+            }
             setIsSubmitting(false);
             return;
           }
@@ -160,6 +224,18 @@ export default function LoginPage() {
       if (loggedInUser) {
         setIsSuccess(true);
         localStorage.setItem("liku_user", JSON.stringify(loggedInUser));
+        
+        // GSAP success fade out and slide-up transition before route push
+        if (formWrapperRef.current) {
+          gsap.to(formWrapperRef.current, {
+            opacity: 0,
+            y: -30,
+            duration: 0.8,
+            delay: 0.8,
+            ease: "power3.in"
+          });
+        }
+
         setTimeout(() => {
           router.push("/dashboard");
         }, 1500);
@@ -176,9 +252,15 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen bg-black text-white flex items-center justify-center py-20 px-4 sm:px-6 lg:px-8 overflow-hidden select-none">
       {/* Background Starry Space Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(225,29,72,0.06),transparent_60%)] pointer-events-none" />
+      <div 
+        ref={glowRef}
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(225,29,72,0.06),transparent_60%)] pointer-events-none" 
+      />
 
-      <div className="w-full max-w-sm relative z-10 space-y-8">
+      <div 
+        ref={formWrapperRef}
+        className="w-full max-w-sm relative z-10 space-y-8"
+      >
         
         {/* Back Button */}
         <div className="text-left">
@@ -206,7 +288,7 @@ export default function LoginPage() {
           ) : step === 1 ? (
             /* Step 1: Mobile Number Input */
             <form onSubmit={handlePhoneSubmit} className="space-y-6">
-              <div className="flex flex-col items-center justify-center mb-8">
+              <div ref={logoRef} className="flex flex-col items-center justify-center mb-8">
                 <Image 
                   src={Logo} 
                   alt="Liku Media" 

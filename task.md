@@ -1,3 +1,5 @@
-- [x] Remove the interactive Preview switcher panel from `/dashboard` header
-- [x] Restrict dashboard UI access control strictly to the authenticated user's Firestore role session
+- [x] Integrate a 30-second countdown redirect handler on contact form submission
+- [x] Configure success screen to render countdown timeline and progress bar
+- [x] Ensure message writes to Cloud Firestore database first before initiating timer
+- [x] Add bypass button "Send Message Now" to redirect instantly without waiting
 - [x] Run build checks to verify compilation and styling safety

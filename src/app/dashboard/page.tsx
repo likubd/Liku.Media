@@ -23,14 +23,16 @@ import {
   Trash2,
   Sliders,
   Sparkles,
-  Layers
+  Layers,
+  Inbox
 } from "lucide-react";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ phone: string; role: string; name: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "print" | "digital" | "billing" | "users" | "logs">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "print" | "digital" | "billing" | "users" | "logs" | "messages">("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   // Modal State for Adding User (Super Admin & Admin feature)
   const [showAddModal, setShowAddModal] = useState(false);
@@ -38,6 +40,7 @@ export default function DashboardPage() {
 
   // Database lists
   const [platformUsers, setPlatformUsers] = useState<any[]>([]);
+  const [inboxMessages, setInboxMessages] = useState<any[]>([]);
   const [systemLogs, setSystemLogs] = useState([
     { time: "19:24:01", event: "Enterprise Catalog backup written", status: "Success" },
     { time: "19:15:32", event: "SSL Handshake audit completed", status: "Success" },
@@ -62,7 +65,7 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Fetch Users directly from Cloud Firestore (with auto-migration for legacy auto-ID documents)
+  // Fetch Users directly from Cloud Firestore
   const fetchFirestoreUsers = async () => {
     setIsLoadingUsers(true);
     try {
@@ -75,19 +78,16 @@ export default function DashboardPage() {
         const data = docSnapshot.data();
         const userPhone = data.phone;
 
-        // If the document ID is not equal to its phone field, migrate it!
         if (userPhone && docId !== userPhone) {
           migratedAny = true;
           console.log(`Auto-Migrating user document "${docId}" to phone-keyed ID "${userPhone}"...`);
           
-          // Write clean record keyed by phone number
           const cleanDocRef = doc(db, "users", userPhone);
           await setDoc(cleanDocRef, {
             ...data,
             phone: userPhone
           });
           
-          // Delete old legacy auto-ID record
           await deleteDoc(doc(db, "users", docId));
         } else {
           usersList.push({
@@ -99,7 +99,6 @@ export default function DashboardPage() {
         }
       }
 
-      // If we performed any migrations, re-fetch the clean list
       let finalUsersList = usersList;
       if (migratedAny) {
         const cleanSnapshot = await getDocs(collection(db, "users"));
@@ -130,13 +129,40 @@ export default function DashboardPage() {
     }
   };
 
+  // Fetch proposal messages from Cloud Firestore
+  const fetchFirestoreMessages = async () => {
+    setIsLoadingMessages(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, "messages"));
+      const list: any[] = [];
+      querySnapshot.forEach((doc) => {
+        list.push(doc.data());
+      });
+      
+      // Sort by createdAt timestamp descending
+      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      setInboxMessages(list);
+    } catch (err) {
+      console.error("Failed to fetch messages:", err);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  // Load resources based on user role session
   useEffect(() => {
     fetchFirestoreUsers();
-  }, []);
+    if (user && (user.role === "super_admin" || user.role === "admin")) {
+      fetchFirestoreMessages();
+    }
+  }, [user]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await fetchFirestoreUsers();
+    if (user && (user.role === "super_admin" || user.role === "admin")) {
+      await fetchFirestoreMessages();
+    }
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 
@@ -174,16 +200,13 @@ export default function DashboardPage() {
         createdAt: new Date().toISOString()
       };
 
-      // Write user payload into Cloud Firestore
       await setDoc(newDocRef, userPayload);
 
-      // Log event
       setSystemLogs(prev => [
         { time: new Date().toTimeString().split(" ")[0], event: `User ${newUserData.name} written to Firestore`, status: "Success" },
         ...prev
       ]);
 
-      // Reload
       await fetchFirestoreUsers();
     } catch (err: any) {
       console.error("Failed to write user to Firestore:", err);
@@ -197,20 +220,34 @@ export default function DashboardPage() {
   // Delete user from Firestore database
   const handleDeleteUser = async (phoneToDelete: string, userName: string) => {
     try {
-      // Delete matching document directly by document ID (which is the phone number)
       await deleteDoc(doc(db, "users", phoneToDelete));
 
-      // Log event
       setSystemLogs(prev => [
         { time: new Date().toTimeString().split(" ")[0], event: `Deleted user ${userName} from Firestore`, status: "Warning" },
         ...prev
       ]);
 
-      // Reload
       await fetchFirestoreUsers();
     } catch (err: any) {
       console.error("Failed to delete user from Firestore:", err);
       alert("Error deleting user: " + (err.message || "Permissions denied"));
+    }
+  };
+
+  // Delete contact message from Firestore
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      await deleteDoc(doc(db, "messages", msgId));
+
+      setSystemLogs(prev => [
+        { time: new Date().toTimeString().split(" ")[0], event: `Deleted proposal request ${msgId} from Firestore`, status: "Warning" },
+        ...prev
+      ]);
+
+      await fetchFirestoreMessages();
+    } catch (err: any) {
+      console.error("Failed to delete message:", err);
+      alert("Error deleting request: " + (err.message || "Permissions denied"));
     }
   };
 
@@ -242,7 +279,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center space-x-4">
-
             <button 
               onClick={handleRefresh}
               className="p-2 hover:bg-white/5 active:scale-95 transition-all rounded-full"
@@ -296,14 +332,24 @@ export default function DashboardPage() {
 
             {/* Role specific tabs */}
             {(user.role === "super_admin" || user.role === "admin") && (
-              <button
-                onClick={() => setActiveTab("users")}
-                className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                  activeTab === "users" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                User Directory
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveTab("users")}
+                  className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
+                    activeTab === "users" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  User Directory
+                </button>
+                <button
+                  onClick={() => setActiveTab("messages")}
+                  className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
+                    activeTab === "messages" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  Proposal Inbox
+                </button>
+              </>
             )}
 
             {(user.role === "super_admin") && (
@@ -371,23 +417,23 @@ export default function DashboardPage() {
 
                   <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Database Engine</span>
-                      <Server className="size-5 text-amber-500" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Proposal Inbox</span>
+                      <Inbox className="size-5 text-amber-500" />
                     </div>
                     <div className="mt-4">
-                      <div className="text-3xl font-black">Firestore DB</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Operational • Latency: 4ms</div>
+                      <div className="text-3xl font-black">{inboxMessages.length} Requests</div>
+                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Client messages in Firestore</div>
                     </div>
                   </div>
 
                   <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">System Logs</span>
-                      <Activity className="size-5 text-emerald-500" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Database Engine</span>
+                      <Server className="size-5 text-emerald-500" />
                     </div>
                     <div className="mt-4">
-                      <div className="text-3xl font-black">{systemLogs.length} Events</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Platform events logged today</div>
+                      <div className="text-3xl font-black">Firestore DB</div>
+                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Operational • Latency: 4ms</div>
                     </div>
                   </div>
                 </>
@@ -397,12 +443,12 @@ export default function DashboardPage() {
                 <>
                   <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Active Work Orders</span>
-                      <Printer className="size-5 text-[#e11d48]" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Proposal Inbox</span>
+                      <Inbox className="size-5 text-[#e11d48]" />
                     </div>
                     <div className="mt-4">
-                      <div className="text-3xl font-black">১৮টি সেশন</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Across all print floors</div>
+                      <div className="text-3xl font-black">{inboxMessages.length} Requests</div>
+                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Client messages in Firestore</div>
                     </div>
                   </div>
 
@@ -423,7 +469,7 @@ export default function DashboardPage() {
                       <TrendingUp className="size-5 text-emerald-500" />
                     </div>
                     <div className="mt-4">
-                      <div className="text-3xl font-black">৳৪,৮২০,০০০</div>
+                      <div className="text-3xl font-black">৳৳৪,৮২০,০০০</div>
                       <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Paid contract summaries</div>
                     </div>
                   </div>
@@ -764,7 +810,7 @@ export default function DashboardPage() {
                       <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
                         item.role === "super_admin" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
                         item.role === "admin" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                        item.role === "manager" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-neutral-500/10 text-neutral-400 border border-neutral-855"
+                        item.role === "manager" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-neutral-500/10 text-neutral-400 border border-neutral-800"
                       }`}>
                         {item.role.replace("_", " ")}
                       </span>
@@ -775,6 +821,94 @@ export default function DashboardPage() {
                       >
                         <Trash2 className="size-4" />
                       </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* -------------------- PROPOSAL INBOX TAB -------------------- */}
+        {activeTab === "messages" && (
+          <div className="rounded-none border border-white/10 bg-white/[0.01] p-8 space-y-8 animate-fade-in-up">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-white">Client Proposal Requests & Messages</h3>
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                {inboxMessages.length} Requests
+              </span>
+            </div>
+
+            <div className="space-y-6">
+              {isLoadingMessages ? (
+                <div className="flex py-10 justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : inboxMessages.length === 0 ? (
+                <p className="text-xs text-neutral-500 text-center py-10">No proposal requests received yet.</p>
+              ) : (
+                inboxMessages.map((msg, idx) => (
+                  <div key={idx} className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4 text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/5 pb-4">
+                      <div>
+                        <div className="text-[9px] font-mono text-neutral-500">{msg.id} • {new Date(msg.createdAt).toLocaleString()}</div>
+                        <h4 className="text-base font-extrabold text-white mt-1">{msg.name}</h4>
+                        <div className="text-[10px] text-neutral-400 mt-0.5">{msg.company !== "N/A" ? `Company: ${msg.company}` : "Individual Client"}</div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <a 
+                          href={`https://wa.me/${msg.phone.replace(/\D/g, "")}`}
+                          target="_blank"
+                          className="px-3.5 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-wider transition-all"
+                        >
+                          WhatsApp Reply
+                        </a>
+                        <a 
+                          href={`mailto:${msg.email}`}
+                          className="px-3.5 py-2 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-wider transition-all"
+                        >
+                          Email
+                        </a>
+                        <button 
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-full transition-all"
+                          title="Delete Request"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Metadata & Message */}
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Phone</span>
+                        <span className="text-xs text-neutral-300 mt-0.5 block">{msg.phone}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Email</span>
+                        <span className="text-xs text-neutral-300 mt-0.5 block">{msg.email}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Services Requested</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {msg.services && msg.services.length > 0 ? (
+                            msg.services.map((srv: string, sIdx: number) => (
+                              <span key={sIdx} className="text-[9px] font-bold bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-neutral-300">
+                                {srv}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[9px] text-neutral-500">None selected</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Project Description</span>
+                        <p className="text-xs text-neutral-300 leading-relaxed mt-1 p-3 bg-white/[0.01] border border-white/5 rounded-xl whitespace-pre-wrap">
+                          {msg.message}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))
