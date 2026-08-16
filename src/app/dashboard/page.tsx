@@ -6,6 +6,7 @@ import Image from "next/image";
 import Logo from "@/components/img/likumedia-logo.svg";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, setDoc, query, where, deleteDoc } from "firebase/firestore";
+import { SmsManagement } from "@/components/sms/sms-management";
 import { 
   Printer, 
   Globe, 
@@ -24,12 +25,13 @@ import {
   Sliders,
   Sparkles,
   Layers,
-  Inbox
+  Inbox,
+  Smartphone
 } from "lucide-react";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ phone: string; role: string; name: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "print" | "digital" | "billing" | "users" | "logs" | "messages">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "print" | "digital" | "billing" | "users" | "logs" | "messages" | "sms">("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -328,6 +330,17 @@ export default function DashboardPage() {
               }`}
             >
               Overview
+            </button>
+
+            {/* SMS Gateway Tab */}
+            <button
+              onClick={() => setActiveTab("sms")}
+              className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 flex items-center gap-1.5 ${
+                activeTab === "sms" ? "bg-indigo-600 text-white shadow shadow-indigo-600/50" : "bg-indigo-950/40 text-indigo-400 hover:text-white border border-indigo-800/40"
+              }`}
+            >
+              <Smartphone className="size-3" />
+              <span>SMS Gateway</span>
             </button>
 
             {/* Role specific tabs */}
@@ -988,6 +1001,13 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* -------------------- SMS GATEWAY TAB -------------------- */}
+        {activeTab === "sms" && (
+          <div className="animate-fade-in-up">
+            <SmsManagement />
           </div>
         )}
 

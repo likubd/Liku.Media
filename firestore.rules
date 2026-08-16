@@ -47,5 +47,18 @@ service cloud.firestore {
       // Allow read and deletion for dashboard administration
       allow read, delete: if true;
     }
+
+    // SMS Gateway Collections
+    match /sms_websites/{websiteId} {
+      allow read, write: if true;
+    }
+
+    match /sms_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /sms_settings/{settingId} {
+      allow read, write: if true;
+    }
   }
 }
