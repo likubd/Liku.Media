@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { 
+  firestoreRestGetDocument, 
+  firestoreRestSetDocument 
+} from "@/lib/firestore-rest";
 import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
-import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const CONFIG_FILENAME = "sms_config.json";
 
@@ -15,6 +17,14 @@ interface SmsConfig {
 // GET /api/admin/settings
 export async function GET() {
   try {
+    // 1. Try Cloud Firestore REST API
+    const remoteDoc = await firestoreRestGetDocument("sms_settings", "master");
+    if (remoteDoc && remoteDoc.providerApiKey) {
+      writeJsonFile(CONFIG_FILENAME, remoteDoc);
+      return NextResponse.json({ success: true, data: remoteDoc });
+    }
+
+    // 2. Try Local File / Env
     const fallback: SmsConfig = {
       providerApiKey: process.env.SMS_NET_BD_API_KEY || "",
       providerSenderId: "",
@@ -26,7 +36,12 @@ export async function GET() {
     }
     return NextResponse.json({ success: true, data: config });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    const fallback: SmsConfig = {
+      providerApiKey: process.env.SMS_NET_BD_API_KEY || "",
+      providerSenderId: "",
+      defaultRate: 0.35,
+    };
+    return NextResponse.json({ success: true, data: readJsonFile(CONFIG_FILENAME, fallback) });
   }
 }
 
@@ -43,21 +58,11 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    // Save using serverless-safe storage (/tmp on Vercel, src/data in local)
-    writeJsonFile(CONFIG_FILENAME, newConfig);
+    // 1. Save to Cloud Firestore via REST API
+    await firestoreRestSetDocument("sms_settings", "master", newConfig);
 
-    // Try Firestore update (non-blocking ignore)
-    try {
-      const masterRef = doc(db, "sms_settings", "master");
-      await setDoc(masterRef, {
-        providerApiKey: newConfig.providerApiKey,
-        providerSenderId: newConfig.providerSenderId,
-        defaultRate: newConfig.defaultRate,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (fsErr) {
-      console.warn("Firestore save warning (ignored):", fsErr);
-    }
+    // 2. Save to local storage
+    writeJsonFile(CONFIG_FILENAME, newConfig);
 
     return NextResponse.json({
       success: true,

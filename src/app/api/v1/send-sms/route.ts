@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
-import { db } from "@/lib/firebase";
 import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  getDoc, 
-  doc, 
-  updateDoc, 
-  addDoc, 
-  serverTimestamp,
-  increment 
-} from "firebase/firestore";
+  firestoreRestGetCollection, 
+  firestoreRestGetDocument, 
+  firestoreRestSetDocument 
+} from "@/lib/firestore-rest";
+import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
 import { calculateSmsUnits, normalizePhoneNumbers } from "@/lib/sms";
 
 const CONFIG_FILENAME = "sms_config.json";
@@ -43,6 +35,11 @@ const SMS_NET_BD_ERRORS: Record<number, string> = {
 };
 
 async function getMasterSettings() {
+  const remoteSettings = await firestoreRestGetDocument("sms_settings", "master");
+  if (remoteSettings && remoteSettings.providerApiKey) {
+    return remoteSettings;
+  }
+
   const fallback = {
     providerApiKey: process.env.SMS_NET_BD_API_KEY || "",
     providerSenderId: "",
@@ -54,30 +51,7 @@ async function getMasterSettings() {
     config.providerApiKey = process.env.SMS_NET_BD_API_KEY;
   }
 
-  if (config.providerApiKey) {
-    return config;
-  }
-
-  try {
-    const masterDoc = await getDoc(doc(db, "sms_settings", "master"));
-    if (masterDoc.exists()) {
-      return masterDoc.data();
-    }
-  } catch (err) {
-    console.error("Error fetching sms_settings/master:", err);
-  }
-
-  return fallback;
-}
-
-function appendLocalLog(logEntry: any) {
-  try {
-    const logs = readJsonFile<any[]>(LOGS_FILENAME, []);
-    logs.unshift(logEntry);
-    writeJsonFile(LOGS_FILENAME, logs);
-  } catch (err) {
-    console.error("Error appending log:", err);
-  }
+  return config;
 }
 
 async function handleSendSms(params: {
@@ -113,10 +87,7 @@ async function handleSendSms(params: {
 
   // 2. Lookup Website Account by API Key
   let websiteDoc: any = null;
-  let websiteRef: any = null;
   let isMasterKey = false;
-  let localSiteIndex = -1;
-  const localWebsites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
 
   const masterSettings = await getMasterSettings();
   const masterApiKey = masterSettings.providerApiKey || process.env.SMS_NET_BD_API_KEY;
@@ -124,23 +95,14 @@ async function handleSendSms(params: {
   if (masterApiKey && api_key === masterApiKey) {
     isMasterKey = true;
   } else {
-    // Check local storage websites first
-    localSiteIndex = localWebsites.findIndex((w: any) => w.apiKey === api_key);
-    if (localSiteIndex >= 0) {
-      websiteDoc = localWebsites[localSiteIndex];
-    } else {
-      // Try Firestore
-      try {
-        const q = query(collection(db, "sms_websites"), where("apiKey", "==", api_key));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const firstDoc = querySnapshot.docs[0];
-          websiteDoc = firstDoc.data();
-          websiteRef = firstDoc.ref;
-        }
-      } catch (err) {
-        console.warn("Firestore lookup fallback error:", err);
-      }
+    // Try Cloud Firestore REST API first
+    const cloudWebsites = await firestoreRestGetCollection("sms_websites");
+    websiteDoc = cloudWebsites.find((w: any) => w.apiKey === api_key);
+
+    if (!websiteDoc) {
+      // Fallback to local storage
+      const localWebsites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
+      websiteDoc = localWebsites.find((w: any) => w.apiKey === api_key);
     }
 
     if (!websiteDoc) {
@@ -270,31 +232,30 @@ async function handleSendSms(params: {
   // 7. Update Balance & Log Transaction
   if (isSuccess && !isMasterKey && websiteDoc) {
     const remainingBalance = Number((websiteDoc.balance - totalCost).toFixed(4));
+    const updatedSite = {
+      ...websiteDoc,
+      balance: remainingBalance,
+      totalSent: (websiteDoc.totalSent || 0) + phoneList.length,
+      totalSpent: Number(((websiteDoc.totalSpent || 0) + totalCost).toFixed(4)),
+      updatedAt: new Date().toISOString(),
+    };
 
-    if (localSiteIndex >= 0) {
-      localWebsites[localSiteIndex].balance = remainingBalance;
-      localWebsites[localSiteIndex].totalSent = (localWebsites[localSiteIndex].totalSent || 0) + phoneList.length;
-      localWebsites[localSiteIndex].totalSpent = Number(((localWebsites[localSiteIndex].totalSpent || 0) + totalCost).toFixed(4));
+    // Update Cloud Firestore via REST API
+    await firestoreRestSetDocument("sms_websites", websiteDoc.id, updatedSite);
+
+    // Update Local storage
+    const localWebsites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
+    const localIdx = localWebsites.findIndex((w: any) => w.id === websiteDoc.id);
+    if (localIdx >= 0) {
+      localWebsites[localIdx] = updatedSite;
       writeJsonFile(WEBSITES_FILENAME, localWebsites);
-    }
-
-    if (websiteRef) {
-      try {
-        await updateDoc(websiteRef, {
-          balance: remainingBalance,
-          totalSent: increment(phoneList.length),
-          totalSpent: increment(totalCost),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (err) {
-        console.warn("Firestore balance update warning (ignored):", err);
-      }
     }
   }
 
   // Record Log Entry
+  const logId = `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const logData = {
-    id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: logId,
     websiteId: isMasterKey ? "master" : (websiteDoc?.id || "unknown"),
     websiteName: isMasterKey ? "Master Admin" : (websiteDoc?.name || "Website"),
     apiKey: api_key.substring(0, 12) + "...",
@@ -309,19 +270,16 @@ async function handleSendSms(params: {
     status: isSuccess ? "Sent" : "Failed",
     errorMsg: isSuccess ? "" : friendlyErrorMsg,
     source: source,
-    sentAt: { seconds: Math.floor(Date.now() / 1000) },
+    sentAt: new Date().toISOString(),
   };
 
-  appendLocalLog(logData);
+  // Save log to Cloud Firestore via REST API
+  await firestoreRestSetDocument("sms_logs", logId, logData);
 
-  try {
-    await addDoc(collection(db, "sms_logs"), {
-      ...logData,
-      sentAt: serverTimestamp(),
-    });
-  } catch (logErr) {
-    // Ignore Firestore log permission warning
-  }
+  // Save log locally
+  const localLogs = readJsonFile<any[]>(LOGS_FILENAME, []);
+  localLogs.unshift(logData);
+  writeJsonFile(LOGS_FILENAME, localLogs);
 
   // 8. Return Response
   if (isSuccess) {
