@@ -31,6 +31,7 @@ import {
 
 export function SmsManagement() {
   const [activeSubTab, setActiveSubTab] = useState<"overview" | "send" | "websites" | "logs" | "docs" | "settings">("overview");
+  const [origin, setOrigin] = useState("https://yourdomain.com");
 
   // Global State
   const [websites, setWebsites] = useState<any[]>([]);
@@ -171,6 +172,9 @@ export function SmsManagement() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
     fetchWebsites();
     fetchLogs();
     fetchMasterSettings();
@@ -680,7 +684,7 @@ export function SmsManagement() {
                   </span>
                 </div>
                 <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto select-all">
-                  https://yourdomain.com/api/v1/send-sms?api_key=YOUR_KEY&msg=Hello&to=88018...
+                  {origin}/api/v1/send-sms?api_key=YOUR_KEY&msg=Hello&to=88018...
                 </div>
               </div>
             </div>
@@ -1214,7 +1218,7 @@ export function SmsManagement() {
             <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2 font-mono text-xs">
               <div className="flex items-center gap-3">
                 <span className="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">POST & GET</span>
-                <span className="text-emerald-400 font-bold">https://yourdomain.com/api/v1/send-sms</span>
+                <span className="text-emerald-400 font-bold">{origin}/api/v1/send-sms</span>
               </div>
             </div>
 
@@ -1226,7 +1230,7 @@ export function SmsManagement() {
               <div className="space-y-1">
                 <span className="text-xs text-indigo-400 font-medium">1. cURL Command</span>
                 <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
-{`curl -X POST https://yourdomain.com/api/v1/send-sms \\
+{`curl -X POST ${origin}/api/v1/send-sms \\
   -H "Content-Type: application/json" \\
   -d '{
     "api_key": "YOUR_WEBSITE_API_KEY",
@@ -1241,7 +1245,7 @@ export function SmsManagement() {
                 <span className="text-xs text-indigo-400 font-medium">2. JavaScript / Node.js (fetch)</span>
                 <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
 {`async function sendSms() {
-  const response = await fetch("https://yourdomain.com/api/v1/send-sms", {
+  const response = await fetch("${origin}/api/v1/send-sms", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -1260,7 +1264,7 @@ export function SmsManagement() {
               <div className="space-y-1">
                 <span className="text-xs text-indigo-400 font-medium">3. PHP / WordPress Snippet</span>
                 <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
-{`$url = "https://yourdomain.com/api/v1/send-sms";
+{`$url = "${origin}/api/v1/send-sms";
 $data = array(
     'api_key' => 'YOUR_WEBSITE_API_KEY',
     'msg' => 'Test SMS Message',
