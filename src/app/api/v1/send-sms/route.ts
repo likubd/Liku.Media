@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
 import { db } from "@/lib/firebase";
 import { 
   collection, 
@@ -16,9 +15,9 @@ import {
 } from "firebase/firestore";
 import { calculateSmsUnits, normalizePhoneNumbers } from "@/lib/sms";
 
-const CONFIG_FILE_PATH = path.join(process.cwd(), "src", "data", "sms_config.json");
-const WEBSITES_FILE_PATH = path.join(process.cwd(), "src", "data", "sms_websites.json");
-const LOGS_FILE_PATH = path.join(process.cwd(), "src", "data", "sms_logs.json");
+const CONFIG_FILENAME = "sms_config.json";
+const WEBSITES_FILENAME = "sms_websites.json";
+const LOGS_FILENAME = "sms_logs.json";
 
 // Upstream Provider Endpoint
 const PROVIDER_SEND_SMS_URL = "https://api.sms.net.bd/sendsms";
@@ -44,16 +43,19 @@ const SMS_NET_BD_ERRORS: Record<number, string> = {
 };
 
 async function getMasterSettings() {
-  try {
-    if (fs.existsSync(CONFIG_FILE_PATH)) {
-      const data = fs.readFileSync(CONFIG_FILE_PATH, "utf8");
-      const json = JSON.parse(data);
-      if (json.providerApiKey) {
-        return json;
-      }
-    }
-  } catch (err) {
-    console.error("Error reading local sms_config.json:", err);
+  const fallback = {
+    providerApiKey: process.env.SMS_NET_BD_API_KEY || "",
+    providerSenderId: "",
+    defaultRate: 0.35,
+  };
+
+  const config = readJsonFile<any>(CONFIG_FILENAME, fallback);
+  if (!config.providerApiKey && process.env.SMS_NET_BD_API_KEY) {
+    config.providerApiKey = process.env.SMS_NET_BD_API_KEY;
+  }
+
+  if (config.providerApiKey) {
+    return config;
   }
 
   try {
@@ -65,44 +67,16 @@ async function getMasterSettings() {
     console.error("Error fetching sms_settings/master:", err);
   }
 
-  return {
-    providerApiKey: process.env.SMS_NET_BD_API_KEY || "",
-    providerSenderId: "",
-    defaultRate: 0.35,
-  };
-}
-
-function getLocalWebsites(): any[] {
-  try {
-    if (fs.existsSync(WEBSITES_FILE_PATH)) {
-      const data = fs.readFileSync(WEBSITES_FILE_PATH, "utf8");
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error("Error reading sms_websites.json:", err);
-  }
-  return [];
-}
-
-function saveLocalWebsites(websites: any[]) {
-  try {
-    fs.writeFileSync(WEBSITES_FILE_PATH, JSON.stringify(websites, null, 2), "utf8");
-  } catch (err) {
-    console.error("Error saving sms_websites.json:", err);
-  }
+  return fallback;
 }
 
 function appendLocalLog(logEntry: any) {
   try {
-    let logs: any[] = [];
-    if (fs.existsSync(LOGS_FILE_PATH)) {
-      const data = fs.readFileSync(LOGS_FILE_PATH, "utf8");
-      logs = JSON.parse(data);
-    }
+    const logs = readJsonFile<any[]>(LOGS_FILENAME, []);
     logs.unshift(logEntry);
-    fs.writeFileSync(LOGS_FILE_PATH, JSON.stringify(logs, null, 2), "utf8");
+    writeJsonFile(LOGS_FILENAME, logs);
   } catch (err) {
-    console.error("Error appending to sms_logs.json:", err);
+    console.error("Error appending log:", err);
   }
 }
 
@@ -142,7 +116,7 @@ async function handleSendSms(params: {
   let websiteRef: any = null;
   let isMasterKey = false;
   let localSiteIndex = -1;
-  const localWebsites = getLocalWebsites();
+  const localWebsites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
 
   const masterSettings = await getMasterSettings();
   const masterApiKey = masterSettings.providerApiKey || process.env.SMS_NET_BD_API_KEY;
@@ -150,7 +124,7 @@ async function handleSendSms(params: {
   if (masterApiKey && api_key === masterApiKey) {
     isMasterKey = true;
   } else {
-    // Check local websites first
+    // Check local storage websites first
     localSiteIndex = localWebsites.findIndex((w: any) => w.apiKey === api_key);
     if (localSiteIndex >= 0) {
       websiteDoc = localWebsites[localSiteIndex];
@@ -228,7 +202,7 @@ async function handleSendSms(params: {
     return NextResponse.json(
       {
         error: 405,
-        msg: "sms.net.bd এর মাস্টার API Key সেটিংসে বসানো হয়নি। প্রোভাইডার সেটিংস থেকে সঠিক API Key দিন।",
+        msg: "sms.net.bd এর মাস্টার API Key সেটিংসে অথবা Vercel Environment variables এ বসানো হয়নি।",
       },
       { status: 500 }
     );
@@ -301,7 +275,7 @@ async function handleSendSms(params: {
       localWebsites[localSiteIndex].balance = remainingBalance;
       localWebsites[localSiteIndex].totalSent = (localWebsites[localSiteIndex].totalSent || 0) + phoneList.length;
       localWebsites[localSiteIndex].totalSpent = Number(((localWebsites[localSiteIndex].totalSpent || 0) + totalCost).toFixed(4));
-      saveLocalWebsites(localWebsites);
+      writeJsonFile(WEBSITES_FILENAME, localWebsites);
     }
 
     if (websiteRef) {

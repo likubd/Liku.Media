@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { readJsonFile } from "@/lib/server-storage";
 
-const LOGS_FILE_PATH = path.join(process.cwd(), "src", "data", "sms_logs.json");
+const LOGS_FILENAME = "sms_logs.json";
 
 export async function GET() {
   try {
-    let logs: any[] = [];
-    if (fs.existsSync(LOGS_FILE_PATH)) {
-      const data = fs.readFileSync(LOGS_FILE_PATH, "utf8");
-      logs = JSON.parse(data);
-    }
+    const logs = readJsonFile<any[]>(LOGS_FILENAME, []);
     return NextResponse.json({ success: true, data: logs });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

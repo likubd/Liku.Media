@@ -1,26 +1,27 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { readJsonFile } from "@/lib/server-storage";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-const CONFIG_FILE_PATH = path.join(process.cwd(), "src", "data", "sms_config.json");
+const CONFIG_FILENAME = "sms_config.json";
 
 async function getMasterApiKey(): Promise<string> {
-  // 1. Try local JSON config file
+  // 1. Try serverless-safe JSON storage
   try {
-    if (fs.existsSync(CONFIG_FILE_PATH)) {
-      const data = fs.readFileSync(CONFIG_FILE_PATH, "utf8");
-      const json = JSON.parse(data);
-      if (json.providerApiKey && json.providerApiKey.trim()) {
-        return json.providerApiKey.trim();
-      }
+    const config = readJsonFile<any>(CONFIG_FILENAME, null);
+    if (config && config.providerApiKey && config.providerApiKey.trim()) {
+      return config.providerApiKey.trim();
     }
   } catch (err) {
-    console.error("Error reading local sms_config.json:", err);
+    console.error("Error reading sms_config.json:", err);
   }
 
-  // 2. Try Firestore
+  // 2. Try Environment Variable (Vercel / Cloud Host)
+  if (process.env.SMS_NET_BD_API_KEY && process.env.SMS_NET_BD_API_KEY.trim()) {
+    return process.env.SMS_NET_BD_API_KEY.trim();
+  }
+
+  // 3. Try Firestore
   try {
     const masterDoc = await getDoc(doc(db, "sms_settings", "master"));
     if (masterDoc.exists() && masterDoc.data()?.providerApiKey) {
@@ -30,8 +31,7 @@ async function getMasterApiKey(): Promise<string> {
     console.warn("Error reading Firestore sms_settings/master:", err);
   }
 
-  // 3. Try environment variable
-  return (process.env.SMS_NET_BD_API_KEY || "").trim();
+  return "";
 }
 
 export async function GET() {
@@ -42,11 +42,12 @@ export async function GET() {
       return NextResponse.json({
         configured: false,
         balance: "API Key দেওয়া হয়নি",
-        msg: "মাস্টার API Key দেওয়া হয়নি। প্রোভাইডার সেটিংস থেকে আসল API Key দিন।",
+        msg: "মাস্টার API Key দেওয়া হয়নি। প্রোভাইডার সেটিংস থেকে অথবা Vercel Environment variables এ SMS_NET_BD_API_KEY দিন।",
       });
     }
 
-    const res = await fetch(`https://api.sms.net.bd/user/balance/?api_key=${encodeURIComponent(masterApiKey)}`, {
+    const cleanKey = masterApiKey.trim();
+    const res = await fetch(`https://api.sms.net.bd/user/balance/?api_key=${encodeURIComponent(cleanKey)}`, {
       cache: "no-store",
     });
     const data = await res.json();

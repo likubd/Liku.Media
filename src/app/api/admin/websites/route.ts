@@ -1,40 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
 import { db } from "@/lib/firebase";
 import { collection, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { generateApiKey } from "@/lib/sms";
 
-const WEBSITES_FILE_PATH = path.join(process.cwd(), "src", "data", "sms_websites.json");
-
-function getLocalWebsites(): any[] {
-  try {
-    if (fs.existsSync(WEBSITES_FILE_PATH)) {
-      const data = fs.readFileSync(WEBSITES_FILE_PATH, "utf8");
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error("Error reading sms_websites.json:", err);
-  }
-  return [];
-}
-
-function saveLocalWebsites(websites: any[]) {
-  try {
-    const dir = path.dirname(WEBSITES_FILE_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(WEBSITES_FILE_PATH, JSON.stringify(websites, null, 2), "utf8");
-  } catch (err) {
-    console.error("Error saving sms_websites.json:", err);
-  }
-}
+const WEBSITES_FILENAME = "sms_websites.json";
 
 // GET /api/admin/websites
 export async function GET() {
   try {
-    const websites = getLocalWebsites();
+    const websites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
     return NextResponse.json({ success: true, data: websites });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -69,12 +44,10 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    // Save locally (100% reliable)
-    const websites = getLocalWebsites();
+    const websites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
     websites.unshift(websiteData);
-    saveLocalWebsites(websites);
+    writeJsonFile(WEBSITES_FILENAME, websites);
 
-    // Async try Firestore
     try {
       await setDoc(doc(db, "sms_websites", siteId), {
         ...websiteData,
@@ -106,7 +79,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing website id" }, { status: 400 });
     }
 
-    const websites = getLocalWebsites();
+    const websites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
     const index = websites.findIndex((w: any) => w.id === id);
 
     if (index === -1) {
@@ -131,9 +104,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     websites[index] = { ...currentSite, ...updatePayload };
-    saveLocalWebsites(websites);
+    writeJsonFile(WEBSITES_FILENAME, websites);
 
-    // Async try Firestore
     try {
       await updateDoc(doc(db, "sms_websites", id), {
         ...updatePayload,
@@ -164,11 +136,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing website id" }, { status: 400 });
     }
 
-    let websites = getLocalWebsites();
+    let websites = readJsonFile<any[]>(WEBSITES_FILENAME, []);
     websites = websites.filter((w: any) => w.id !== id);
-    saveLocalWebsites(websites);
+    writeJsonFile(WEBSITES_FILENAME, websites);
 
-    // Async try Firestore
     try {
       await deleteDoc(doc(db, "sms_websites", id));
     } catch (fsErr) {
