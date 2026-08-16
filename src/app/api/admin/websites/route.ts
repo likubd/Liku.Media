@@ -8,6 +8,9 @@ import {
 import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
 import { generateApiKey } from "@/lib/sms";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const WEBSITES_FILENAME = "sms_websites.json";
 
 // GET /api/admin/websites

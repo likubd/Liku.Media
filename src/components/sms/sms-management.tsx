@@ -29,8 +29,25 @@ import {
   Zap,
 } from "lucide-react";
 
-export function SmsManagement() {
-  const [activeSubTab, setActiveSubTab] = useState<"overview" | "send" | "websites" | "logs" | "docs" | "settings">("overview");
+export interface SmsManagementProps {
+  activeSubTab?: "overview" | "send" | "websites" | "logs" | "docs" | "settings";
+  onSubTabChange?: (tab: "overview" | "send" | "websites" | "logs" | "docs" | "settings") => void;
+  hideSubTabsNav?: boolean;
+}
+
+export function SmsManagement({
+  activeSubTab: externalSubTab,
+  onSubTabChange,
+  hideSubTabsNav = false,
+}: SmsManagementProps = {}) {
+  const [internalSubTab, setInternalSubTab] = useState<"overview" | "send" | "websites" | "logs" | "docs" | "settings">("overview");
+
+  const activeSubTab = externalSubTab || internalSubTab;
+  const setActiveSubTab = (tab: "overview" | "send" | "websites" | "logs" | "docs" | "settings") => {
+    setInternalSubTab(tab);
+    if (onSubTabChange) onSubTabChange(tab);
+  };
+
   const [origin, setOrigin] = useState("https://yourdomain.com");
 
   // Global State
@@ -571,34 +588,36 @@ export function SmsManagement() {
           </div>
         )}
 
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto mt-6 pt-4 border-t border-slate-800/80">
-          {[
-            { id: "overview", label: "ওভারভিউ (Overview)", icon: Sparkles },
-            { id: "send", label: "এসএমএস পাঠান (Send)", icon: Send },
-            { id: "websites", label: "ওয়েবসাইট ও API Keys", icon: Key },
-            { id: "logs", label: "এসএমএস হিস্ট্রি (Logs)", icon: History },
-            { id: "docs", label: "API ডকুমেন্টেশন", icon: Code },
-            { id: "settings", label: "প্রোভাইডার সেটিংস", icon: Settings },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSubTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap ${
-                  isActive
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
-                    : "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Sub-Navigation Tabs (Rendered if not hidden for sidebar) */}
+        {!hideSubTabsNav && (
+          <div className="flex items-center gap-2 overflow-x-auto mt-6 pt-4 border-t border-slate-800/80">
+            {[
+              { id: "overview", label: "ওভারভিউ (Overview)", icon: Sparkles },
+              { id: "send", label: "এসএমএস পাঠান (Send)", icon: Send },
+              { id: "websites", label: "ওয়েবসাইট ও API Keys", icon: Key },
+              { id: "logs", label: "এসএমএস হিস্ট্রি (Logs)", icon: History },
+              { id: "docs", label: "API ডকুমেন্টেশন", icon: Code },
+              { id: "settings", label: "প্রোভাইডার সেটিংস", icon: Settings },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveSubTab(tab.id as any)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap ${
+                    isActive
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
+                      : "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* SUB-TAB CONTENT 1: OVERVIEW */}

@@ -5,6 +5,9 @@ import {
 } from "@/lib/firestore-rest";
 import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const CONFIG_FILENAME = "sms_config.json";
 
 interface SmsConfig {

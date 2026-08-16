@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { firestoreRestGetCollection } from "@/lib/firestore-rest";
 import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const LOGS_FILENAME = "sms_logs.json";
 
 export async function GET() {

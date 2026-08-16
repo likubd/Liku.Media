@@ -7,6 +7,9 @@ import {
 import { readJsonFile, writeJsonFile } from "@/lib/server-storage";
 import { calculateSmsUnits, normalizePhoneNumbers } from "@/lib/sms";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const CONFIG_FILENAME = "sms_config.json";
 const WEBSITES_FILENAME = "sms_websites.json";
 const LOGS_FILENAME = "sms_logs.json";

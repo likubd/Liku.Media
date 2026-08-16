@@ -5,55 +5,52 @@ import Link from "next/link";
 import Image from "next/image";
 import Logo from "@/components/img/likumedia-logo.svg";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDocs, setDoc, query, where, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { SmsManagement } from "@/components/sms/sms-management";
-import { 
-  Printer, 
-  Globe, 
-  CreditCard, 
-  LogOut, 
-  ArrowUpRight, 
-  CheckCircle2, 
-  FileText, 
-  TrendingUp, 
-  RefreshCw,
+import {
+  LayoutDashboard,
+  Smartphone,
   Users,
-  Server,
-  Activity,
+  Inbox,
+  LogOut,
+  RefreshCw,
   Plus,
   Trash2,
-  Sliders,
+  Menu,
+  X,
   Sparkles,
-  Layers,
-  Inbox,
-  Smartphone
+  ChevronRight,
+  ChevronDown,
+  Mail,
+  Phone,
+  ShieldCheck,
+  Calendar,
+  DollarSign,
+  ArrowUpRight,
+  CheckCircle2,
+  Send,
+  Key,
+  History,
+  Code,
+  Settings
 } from "lucide-react";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ phone: string; role: string; name: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "print" | "digital" | "billing" | "users" | "logs" | "messages" | "sms">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "sms" | "users" | "messages">("overview");
+  const [smsSubTab, setSmsSubTab] = useState<"overview" | "send" | "websites" | "logs" | "docs" | "settings">("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-  // Modal State for Adding User (Super Admin & Admin feature)
+  // Modal State for Adding User
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUserData, setNewUserData] = useState({ name: "", phone: "", role: "client", pin: "123456" });
 
   // Database lists
   const [platformUsers, setPlatformUsers] = useState<any[]>([]);
   const [inboxMessages, setInboxMessages] = useState<any[]>([]);
-  const [systemLogs, setSystemLogs] = useState([
-    { time: "19:24:01", event: "Enterprise Catalog backup written", status: "Success" },
-    { time: "19:15:32", event: "SSL Handshake audit completed", status: "Success" },
-    { time: "18:40:12", event: "Manager Rafat Kabir joined production floor", status: "Info" },
-    { time: "18:10:02", event: "API Gateway rate limit check: 0 warnings", status: "Success" },
-  ]);
-
-  const [printJobs, setPrintJobs] = useState([
-    { id: "JOB-4890", name: "Premium Catalog Run", qty: "15,000 Pcs", status: "In Press", progress: 67, ink: { c: 80, m: 70, y: 90, k: 40 } },
-    { id: "JOB-4891", name: "Executive Business Cards", qty: "2,000 Pcs", status: "Finished", progress: 100, ink: { c: 100, m: 100, y: 100, k: 100 } }
-  ]);
 
   // Load User Session
   useEffect(() => {
@@ -82,14 +79,11 @@ export default function DashboardPage() {
 
         if (userPhone && docId !== userPhone) {
           migratedAny = true;
-          console.log(`Auto-Migrating user document "${docId}" to phone-keyed ID "${userPhone}"...`);
-          
           const cleanDocRef = doc(db, "users", userPhone);
           await setDoc(cleanDocRef, {
             ...data,
             phone: userPhone
           });
-          
           await deleteDoc(doc(db, "users", docId));
         } else {
           usersList.push({
@@ -125,7 +119,7 @@ export default function DashboardPage() {
         ]);
       }
     } catch (err) {
-      console.error("Failed to load or migrate Firestore users:", err);
+      console.error("Failed to load Firestore users:", err);
     } finally {
       setIsLoadingUsers(false);
     }
@@ -137,11 +131,10 @@ export default function DashboardPage() {
     try {
       const querySnapshot = await getDocs(collection(db, "messages"));
       const list: any[] = [];
-      querySnapshot.forEach((doc) => {
-        list.push(doc.data());
+      querySnapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
       });
       
-      // Sort by createdAt timestamp descending
       list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setInboxMessages(list);
     } catch (err) {
@@ -151,7 +144,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Load resources based on user role session
   useEffect(() => {
     fetchFirestoreUsers();
     if (user && (user.role === "super_admin" || user.role === "admin")) {
@@ -165,26 +157,10 @@ export default function DashboardPage() {
     if (user && (user.role === "super_admin" || user.role === "admin")) {
       await fetchFirestoreMessages();
     }
-    setTimeout(() => setIsRefreshing(false), 1000);
+    setTimeout(() => setIsRefreshing(false), 800);
   };
 
-  // Adjust Ink levels (Manager feature)
-  const adjustInk = (jobId: string, color: 'c' | 'm' | 'y' | 'k', amount: number) => {
-    setPrintJobs(prev => prev.map(job => {
-      if (job.id === jobId) {
-        return {
-          ...job,
-          ink: {
-            ...job.ink,
-            [color]: Math.min(100, Math.max(0, job.ink[color] + amount))
-          }
-        };
-      }
-      return job;
-    }));
-  };
-
-  // Save new user to Firestore database
+  // Add new user to Firestore
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserData.name || !newUserData.phone) return;
@@ -203,896 +179,596 @@ export default function DashboardPage() {
       };
 
       await setDoc(newDocRef, userPayload);
-
-      setSystemLogs(prev => [
-        { time: new Date().toTimeString().split(" ")[0], event: `User ${newUserData.name} written to Firestore`, status: "Success" },
-        ...prev
-      ]);
-
       await fetchFirestoreUsers();
+      setShowAddModal(false);
+      setNewUserData({ name: "", phone: "", role: "client", pin: "123456" });
     } catch (err: any) {
       console.error("Failed to write user to Firestore:", err);
-      alert("Error adding user to database: " + (err.message || "Permissions denied"));
+      alert("ইউজার তৈরি করতে সমস্যা হয়েছে: " + (err.message || "Permissions denied"));
     }
-    
-    setShowAddModal(false);
-    setNewUserData({ name: "", phone: "", role: "client", pin: "123456" });
   };
 
-  // Delete user from Firestore database
+  // Delete user from Firestore
   const handleDeleteUser = async (phoneToDelete: string, userName: string) => {
+    if (!confirm(`আপনি কি সত্যিই ${userName} ইউজার মুছে ফেলতে চান?`)) return;
     try {
       await deleteDoc(doc(db, "users", phoneToDelete));
-
-      setSystemLogs(prev => [
-        { time: new Date().toTimeString().split(" ")[0], event: `Deleted user ${userName} from Firestore`, status: "Warning" },
-        ...prev
-      ]);
-
       await fetchFirestoreUsers();
     } catch (err: any) {
-      console.error("Failed to delete user from Firestore:", err);
-      alert("Error deleting user: " + (err.message || "Permissions denied"));
+      console.error("Failed to delete user:", err);
+      alert("ইউজার মুছে ফেলতে ব্যর্থ: " + (err.message || "Permissions denied"));
     }
   };
 
-  // Delete contact message from Firestore
+  // Delete proposal message from Firestore
   const handleDeleteMessage = async (msgId: string) => {
+    if (!confirm("আপনি কি মেসেজটি মুছে ফেলতে চান?")) return;
     try {
       await deleteDoc(doc(db, "messages", msgId));
-
-      setSystemLogs(prev => [
-        { time: new Date().toTimeString().split(" ")[0], event: `Deleted proposal request ${msgId} from Firestore`, status: "Warning" },
-        ...prev
-      ]);
-
       await fetchFirestoreMessages();
     } catch (err: any) {
       console.error("Failed to delete message:", err);
-      alert("Error deleting request: " + (err.message || "Permissions denied"));
+      alert("মেসেজ মুছতে ব্যর্থ: " + (err.message || "Permissions denied"));
     }
   };
 
   if (!user) return null;
 
-  return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden select-none">
-      {/* Background Starry Space Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(225,29,72,0.06),transparent_60%)] pointer-events-none" />
+  const navigationItems = [
+    { id: "overview", label: "ওভারভিউ (Overview)", icon: LayoutDashboard },
+    { id: "sms", label: "এসএমএস গেটওয়ে (SMS)", icon: Smartphone },
+    ...(user.role === "super_admin" || user.role === "admin"
+      ? [
+          { id: "users", label: "ইউজার ডিরেক্টরি (Users)", icon: Users, count: platformUsers.length },
+          { id: "messages", label: "ইনবক্স (Inbox)", icon: Inbox, count: inboxMessages.length }
+        ]
+      : [])
+  ];
 
-      {/* Top Navigation Bar */}
-      <header className="border-b border-white/10 bg-black/50 backdrop-blur-xl relative z-10 sticky top-0">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/">
-              <Image 
-                src={Logo} 
-                alt="Liku Media" 
-                className="h-9 w-auto object-contain" 
-                priority
-              />
+  const smsSubItems = [
+    { id: "overview", label: "ওভারভিউ (Overview)", icon: Sparkles },
+    { id: "send", label: "এসএমএস পাঠান (Send)", icon: Send },
+    { id: "websites", label: "ওয়েবসাইট ও API Keys", icon: Key },
+    { id: "logs", label: "এসএমএস হিস্ট্রি (Logs)", icon: History },
+    { id: "docs", label: "API ডকুমেন্টেশন", icon: Code },
+    { id: "settings", label: "প্রোভাইডার সেটিংস", icon: Settings },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans select-none overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* LEFT SIDEBAR NAVIGATION */}
+      <aside
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-slate-900/90 border-r border-slate-800/80 flex flex-col justify-between transition-transform duration-300 backdrop-blur-xl ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div>
+          {/* Brand Header */}
+          <div className="h-20 border-b border-slate-800/80 px-6 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <Image src={Logo} alt="Liku Media" className="h-8 w-auto object-contain" priority />
             </Link>
-            <span className="h-5 w-[1px] bg-white/20 hidden sm:block" />
-            
-            {/* Role indicator tag */}
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#e11d48] bg-[#e11d48]/10 border border-[#e11d48]/20 px-2.5 py-1 rounded hidden sm:block">
-              {user.role.replace("_", " ")} Console
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation Menu Links */}
+          <div className="px-4 py-6 space-y-1.5">
+            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-indigo-400" />
+              <span>মেনু নেভিগেশন</span>
+            </div>
+
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              const isSmsItem = item.id === "sms";
+
+              return (
+                <div key={item.id} className="space-y-1">
+                  <button
+                    onClick={() => {
+                      setActiveTab(item.id as any);
+                      if (!isSmsItem) setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                      isActive
+                        ? "bg-indigo-600/90 text-white shadow-lg shadow-indigo-600/25 font-semibold"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-slate-400"}`} />
+                      <span>{item.label}</span>
+                    </div>
+                    {isSmsItem ? (
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${
+                          isActive ? "rotate-180 text-white" : "text-slate-400"
+                        }`}
+                      />
+                    ) : (
+                      item.count !== undefined &&
+                      item.count > 0 && (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isActive ? "bg-white/20 text-white" : "bg-slate-800 text-indigo-400 border border-slate-700"
+                          }`}
+                        >
+                          {item.count}
+                        </span>
+                      )
+                    )}
+                  </button>
+
+                  {/* Sub-Sidebar Nested Items for SMS Gateway */}
+                  {isSmsItem && isActive && (
+                    <div className="pl-3 pr-1 py-1 space-y-1 border-l-2 border-indigo-600/60 ml-4 my-1">
+                      {smsSubItems.map((sub) => {
+                        const SubIcon = sub.icon;
+                        const isSubActive = smsSubTab === sub.id;
+                        return (
+                          <button
+                            key={sub.id}
+                            onClick={() => {
+                              setActiveTab("sms");
+                              setSmsSubTab(sub.id as any);
+                              setSidebarOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                              isSubActive
+                                ? "bg-indigo-950/80 text-indigo-200 border border-indigo-800/80 font-semibold"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                            }`}
+                          >
+                            <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? "text-indigo-400" : "text-slate-400"}`} />
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* User Profile & Actions Footer */}
+        <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
+          <div className="flex items-center justify-between bg-slate-900 border border-slate-800/80 p-3 rounded-xl mb-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-white truncate">{user.name || "Administrator"}</div>
+              <div className="text-[10px] text-slate-400 font-mono truncate">{user.phone}</div>
+            </div>
+            <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-950/80 border border-indigo-800/60 px-2 py-0.5 rounded">
+              {user.role.replace("_", " ")}
             </span>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <button 
+          <div className="flex items-center gap-2">
+            <button
               onClick={handleRefresh}
-              className="p-2 hover:bg-white/5 active:scale-95 transition-all rounded-full"
-              title="Refresh Console"
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition"
+              title="রিফ্রেশ করুন"
             >
-              <RefreshCw className={`size-4 text-neutral-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-indigo-400" : ""}`} />
+              <span>রিফ্রেশ</span>
             </button>
-            <Link 
-              href="/login" 
-              className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white transition-colors py-2 px-3 hover:bg-white/5 rounded-full"
+            <Link
+              href="/login"
+              className="flex items-center justify-center p-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 rounded-xl border border-rose-800/50 transition"
+              title="লগআউট"
             >
-              <span>Logout</span>
-              <LogOut className="size-4" />
+              <LogOut className="w-4 h-4" />
             </Link>
           </div>
         </div>
-      </header>
+      </aside>
 
-      {/* Main Console Content */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-        
-        {/* Console Headline */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-12 border-b border-white/5 pb-8">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e11d48] flex items-center gap-2">
-              <Sparkles className="size-3 text-[#eab308]" />
-              <span>System Panel</span>
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Top Header Bar */}
+        <header className="h-20 border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 text-slate-300 hover:text-white bg-slate-800 rounded-xl border border-slate-700"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                {activeTab === "overview" && "সিস্টেম ও কন্ট্রোল ওভারভিউ"}
+                {activeTab === "sms" && "SMS Gateway Management"}
+                {activeTab === "users" && "ইউজার ডিরেক্টরি"}
+                {activeTab === "messages" && "কাস্টমার প্রস্তাবনা ও ইনবক্স"}
+              </h1>
+              <p className="text-xs text-slate-400 hidden sm:block">
+                Liku Media Cloud Control Center • {user.phone} ({user.role.toUpperCase()})
+              </p>
             </div>
-            <h1 className="text-3xl font-extrabold uppercase tracking-tight text-white sm:text-4xl mt-2">
-              {user.role === "super_admin" && "Super Admin Console"}
-              {user.role === "admin" && "Administrator Console"}
-              {user.role === "manager" && "Production Manager Console"}
-              {user.role === "client" && "Enterprise Partner Workspace"}
-            </h1>
-            <p className="text-[10px] text-neutral-500 font-light mt-1.5 uppercase tracking-widest">
-              Liku Media Cloud Systems • Logged as {user.phone} ({user.role})
-            </p>
           </div>
 
-          {/* Action Tabs selector based on Role */}
-          <div className="flex bg-neutral-900/50 border border-white/5 p-1 rounded-full w-max flex-wrap gap-1">
-            {/* Overview - Shared */}
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                activeTab === "overview" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              Overview
-            </button>
-
-            {/* SMS Gateway Tab */}
-            <button
-              onClick={() => setActiveTab("sms")}
-              className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 flex items-center gap-1.5 ${
-                activeTab === "sms" ? "bg-indigo-600 text-white shadow shadow-indigo-600/50" : "bg-indigo-950/40 text-indigo-400 hover:text-white border border-indigo-800/40"
-              }`}
-            >
-              <Smartphone className="size-3" />
-              <span>SMS Gateway</span>
-            </button>
-
-            {/* Role specific tabs */}
-            {(user.role === "super_admin" || user.role === "admin") && (
-              <>
-                <button
-                  onClick={() => setActiveTab("users")}
-                  className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                    activeTab === "users" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  User Directory
-                </button>
-                <button
-                  onClick={() => setActiveTab("messages")}
-                  className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                    activeTab === "messages" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  Proposal Inbox
-                </button>
-              </>
-            )}
-
-            {(user.role === "super_admin") && (
-              <button
-                onClick={() => setActiveTab("logs")}
-                className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                  activeTab === "logs" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                System Logs
-              </button>
-            )}
-
-            {/* Standard Project Tabs */}
-            <button
-              onClick={() => setActiveTab("print")}
-              className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                activeTab === "print" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              Print Floor
-            </button>
-
-            {user.role === "client" && (
-              <>
-                <button
-                  onClick={() => setActiveTab("digital")}
-                  className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                    activeTab === "digital" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  Websites
-                </button>
-                <button
-                  onClick={() => setActiveTab("billing")}
-                  className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-300 ${
-                    activeTab === "billing" ? "bg-primary text-primary-foreground shadow" : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  Ledger
-                </button>
-              </>
-            )}
+          <div className="flex items-center gap-3">
+            <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-semibold rounded-full">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> System Online
+            </span>
           </div>
-        </div>
+        </header>
 
-        {/* -------------------- OVERVIEW TAB -------------------- */}
-        {activeTab === "overview" && (
-          <div className="space-y-8 animate-fade-in-up">
-            
-            {/* Role Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {user.role === "super_admin" && (
-                <>
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Total System Users</span>
-                      <Users className="size-5 text-[#e11d48]" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">{platformUsers.length} Users</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Stored in Cloud Firestore</div>
+        {/* Dynamic Viewport Content */}
+        <main className="p-4 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {/* TAB 1: OVERVIEW */}
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="bg-slate-900/80 border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden shadow-md">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-400">নিবন্ধিত ইউজার</span>
+                    <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+                      <Users className="w-5 h-5" />
                     </div>
                   </div>
+                  <div className="text-3xl font-extrabold text-white mt-3">{platformUsers.length}</div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
+                    <span>সক্রিয় অ্যাকাউন্টস</span>
+                    <button
+                      onClick={() => setActiveTab("users")}
+                      className="text-indigo-400 hover:underline flex items-center gap-1 text-[11px]"
+                    >
+                      দেখুন <ArrowUpRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
 
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Proposal Inbox</span>
-                      <Inbox className="size-5 text-amber-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">{inboxMessages.length} Requests</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Client messages in Firestore</div>
+                <div className="bg-slate-900/80 border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden shadow-md">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-400">প্রস্তাবনা ইনবক্স (Inbox)</span>
+                    <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                      <Inbox className="w-5 h-5" />
                     </div>
                   </div>
+                  <div className="text-3xl font-extrabold text-white mt-3">{inboxMessages.length}</div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
+                    <span>ওয়েবসাইট মেসেজসমূহ</span>
+                    <button
+                      onClick={() => setActiveTab("messages")}
+                      className="text-emerald-400 hover:underline flex items-center gap-1 text-[11px]"
+                    >
+                      ইনবক্স খুলুন <ArrowUpRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
 
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Database Engine</span>
-                      <Server className="size-5 text-emerald-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">Firestore DB</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Operational • Latency: 4ms</div>
+                <div className="bg-slate-900/80 border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden shadow-md sm:col-span-2 lg:col-span-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-400">এসএমএস গেটওয়ে</span>
+                    <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                      <Smartphone className="w-5 h-5" />
                     </div>
                   </div>
-                </>
-              )}
-
-              {user.role === "admin" && (
-                <>
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Proposal Inbox</span>
-                      <Inbox className="size-5 text-[#e11d48]" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">{inboxMessages.length} Requests</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Client messages in Firestore</div>
-                    </div>
+                  <div className="text-2xl font-extrabold text-blue-400 mt-3">Multi-Tenant Gateway</div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
+                    <span>sms.net.bd ইন্টিগ্রেশন</span>
+                    <button
+                      onClick={() => setActiveTab("sms")}
+                      className="text-blue-400 hover:underline flex items-center gap-1 text-[11px]"
+                    >
+                      ম্যানেজ করুন <ArrowUpRight className="w-3 h-3" />
+                    </button>
                   </div>
-
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Design Approvals</span>
-                      <CheckCircle2 className="size-5 text-amber-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">৪টি পেন্ডিং</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Requires design review</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Enterprise Sales</span>
-                      <TrendingUp className="size-5 text-emerald-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">৳৳৪,৮২০,০০০</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Paid contract summaries</div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {user.role === "manager" && (
-                <>
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Operational Presses</span>
-                      <Printer className="size-5 text-[#e11d48]" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">২ / ৩ সেশন</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Offset Press 1 & 2 active</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">direct CTP Plates</span>
-                      <Layers className="size-5 text-amber-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">১৬টি প্লেট</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Processed and locked</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Design Approvals</span>
-                      <CheckCircle2 className="size-5 text-emerald-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">৪টি রেডি</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Pending print dispatch</div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {user.role === "client" && (
-                <>
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Print Production Runs</span>
-                      <Printer className="size-5 text-[#e11d48]" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">১টি রানিং</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Premium Catalog (67% Done)</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Web Portals</span>
-                      <Globe className="size-5 text-amber-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">২টি সোর্স</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Production URL & Staging</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-none border border-white/10 bg-white/[0.01] p-6 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Pending Invoices</span>
-                      <CreditCard className="size-5 text-emerald-500" />
-                    </div>
-                    <div className="mt-4">
-                      <div className="text-3xl font-black">৳৫০,০০০</div>
-                      <div className="text-[10px] text-neutral-500 font-light uppercase tracking-wider mt-1">Due Date: 2026-07-15</div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Split Visual Layout depending on Role */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
-              {/* Left Column depending on role */}
-              <div className="rounded-none border border-white/10 bg-white/[0.01] p-8 space-y-6">
-                {user.role === "super_admin" || user.role === "admin" ? (
-                  /* User Directory Preview */
-                  <>
-                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white">Registered Core Users</h3>
-                      <button 
-                        onClick={() => setShowAddModal(true)}
-                        className="text-[9px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-3 py-1.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center"
-                      >
-                        <Plus className="size-3 mr-1" /> Add User
-                      </button>
-                    </div>
-
-                    <div className="space-y-4 max-h-[300px] overflow-y-auto">
-                      {isLoadingUsers ? (
-                        <div className="flex py-10 justify-center">
-                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                        </div>
-                      ) : (
-                        platformUsers.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3.5 bg-white/[0.01] border border-white/5 rounded-xl text-xs">
-                            <div className="text-left space-y-1">
-                              <div className="font-extrabold text-white">{item.name}</div>
-                              <div className="text-[9px] text-neutral-500">{item.phone}</div>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                                item.role === "super_admin" ? "bg-red-500/10 text-red-400" :
-                                item.role === "admin" ? "bg-amber-500/10 text-amber-400" :
-                                item.role === "manager" ? "bg-blue-500/10 text-blue-400" : "bg-neutral-500/10 text-neutral-400"
-                              }`}>
-                                {item.role.replace("_", " ")}
-                              </span>
-                              <button 
-                                onClick={() => handleDeleteUser(item.phone, item.name)}
-                                className="text-neutral-600 hover:text-red-500 transition-colors p-1"
-                                title="Delete User"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  /* Client or Manager: Live Print production progress */
-                  <>
-                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white">Live Offset Printing Progress</h3>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-primary animate-pulse">Live</span>
-                    </div>
-
-                    <div className="space-y-6">
-                      {printJobs.map((job, idx) => (
-                        <div key={idx} className="space-y-4">
-                          <div className="flex items-center justify-between text-xs">
-                            <div>
-                              <span className="font-extrabold uppercase tracking-wide text-white">{job.name}</span>
-                              <span className="text-[10px] text-neutral-500 ml-2">({job.qty})</span>
-                            </div>
-                            <span className="font-bold text-neutral-400">{job.progress}%</span>
-                          </div>
-
-                          <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-gradient-to-r from-[#e11d48] to-[#eab308] rounded-full transition-all duration-1000" 
-                              style={{ width: `${job.progress}%` }} 
-                            />
-                          </div>
-
-                          {/* Print ink indicators */}
-                          {job.progress < 100 && (
-                            <div className="grid grid-cols-4 gap-2 pt-2">
-                              {Object.keys(job.ink).map((colorKey) => {
-                                const val = (job.ink as any)[colorKey];
-                                return (
-                                  <div key={colorKey} className="space-y-1">
-                                    <div className="text-[8px] font-black uppercase tracking-wider text-neutral-500 text-center uppercase">{colorKey}</div>
-                                    <div className="h-1 w-full bg-neutral-900 rounded-full overflow-hidden">
-                                      <div 
-                                        className={`h-full ${
-                                          colorKey === 'c' ? 'bg-cyan-400' :
-                                          colorKey === 'm' ? 'bg-pink-500' :
-                                          colorKey === 'y' ? 'bg-yellow-400' : 'bg-white'
-                                        }`} 
-                                        style={{ width: `${val}%` }} 
-                                      />
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                </div>
               </div>
 
-              {/* Right Column depending on role */}
-              <div className="rounded-none border border-white/10 bg-white/[0.01] p-8 space-y-6">
-                {user.role === "super_admin" ? (
-                  /* Event Logs Preview for Super Admin */
-                  <>
-                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white">Security & Audit Event Logs</h3>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-neutral-500">Live logs</span>
+              {/* Quick Actions Navigation Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div
+                  onClick={() => setActiveTab("sms")}
+                  className="bg-gradient-to-br from-slate-900 to-indigo-950/40 border border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-indigo-500/40 transition group relative overflow-hidden"
+                >
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30 group-hover:scale-105 transition">
+                      <Smartphone className="w-6 h-6" />
                     </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition">
+                        SMS Gateway & Website Multi-Tenant
+                      </h3>
+                      <p className="text-xs text-slate-400">এপিআই কী তৈরি, ব্যালেন্স চার্জ রিচার্জ ও বাল্ক এসএমএস</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end text-xs font-semibold text-indigo-400 gap-1 pt-2">
+                    গেটওয়েতে প্রবেশ করুন <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
 
-                    <div className="space-y-4 max-h-[300px] overflow-y-auto">
-                      {systemLogs.map((log, idx) => (
-                        <div key={idx} className="p-3 bg-white/[0.01] border border-white/5 rounded-xl text-[10px] font-mono flex items-center justify-between">
-                          <div className="text-left space-y-1">
-                            <span className="text-[#eab308] mr-2">[{log.time}]</span>
-                            <span className="text-neutral-300">{log.event}</span>
-                          </div>
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                            log.status === "Success" ? "bg-emerald-500/10 text-emerald-400" :
-                            log.status === "Warning" ? "bg-red-500/10 text-red-400" : "bg-neutral-500/10 text-neutral-400"
-                          }`}>
-                            {log.status}
+                <div
+                  onClick={() => setActiveTab("users")}
+                  className="bg-gradient-to-br from-slate-900 to-slate-900 border border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-slate-700 transition group relative overflow-hidden"
+                >
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="p-3 bg-slate-800 text-slate-300 rounded-xl border border-slate-700 group-hover:scale-105 transition">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white group-hover:text-slate-200 transition">
+                        User Directory Management
+                      </h3>
+                      <p className="text-xs text-slate-400">নতুন এডমিন/ইউজার যোগ করুন এবং পারমিশন অ্যাক্সেস কন্ট্রোল</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end text-xs font-semibold text-slate-300 gap-1 pt-2">
+                    ইউজারদের তালিকা দেখুন <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Inbox Messages */}
+              {inboxMessages.length > 0 && (
+                <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Inbox className="w-4 h-4 text-emerald-400" /> সাম্প্রতিক কাস্টমার মেসেজসমূহ
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab("messages")}
+                      className="text-xs text-emerald-400 hover:underline"
+                    >
+                      সবগুলো দেখুন ({inboxMessages.length})
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {inboxMessages.slice(0, 3).map((msg, idx) => (
+                      <div key={idx} className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-white">{msg.name || "Guest User"}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString("bn-BD") : "Recent"}
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  </>
-                ) : user.role === "manager" ? (
-                  /* Manager: Direct CTP Plate controls */
-                  <>
-                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white">Ink Flow Calibration Controls</h3>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500"><Sliders className="size-3.5 inline mr-1" /> Calibration</span>
-                    </div>
-
-                    <div className="space-y-6 text-left">
-                      {printJobs.filter(j => j.progress < 100).map((job, idx) => (
-                        <div key={idx} className="space-y-4">
-                          <div className="text-xs font-bold text-white uppercase tracking-wider">{job.name} (Ink Pumps)</div>
-                          
-                          <div className="space-y-3 pt-2">
-                            {(['c', 'm', 'y', 'k'] as const).map((color) => (
-                              <div key={color} className="flex items-center justify-between text-xs">
-                                <span className="font-extrabold uppercase w-12 text-neutral-400">
-                                  {color === 'c' && 'Cyan'}
-                                  {color === 'm' && 'Magenta'}
-                                  {color === 'y' && 'Yellow'}
-                                  {color === 'k' && 'Black'}
-                                </span>
-                                <div className="flex items-center space-x-3">
-                                  <button 
-                                    onClick={() => adjustInk(job.id, color, -5)}
-                                    className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded font-bold text-neutral-300"
-                                  >
-                                    -5%
-                                  </button>
-                                  <span className="font-mono text-white min-w-[36px] text-center">{(job.ink as any)[color]}%</span>
-                                  <button 
-                                    onClick={() => adjustInk(job.id, color, 5)}
-                                    className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded font-bold text-neutral-300"
-                                  >
-                                    +5%
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                        <p className="text-xs text-slate-300 line-clamp-2">{msg.message}</p>
+                        <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-1">
+                          {msg.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {msg.phone}</span>}
+                          {msg.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {msg.email}</span>}
                         </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  /* Admin or Client: Active system deployments */
-                  <>
-                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white">Web Portal Cloud Deployments</h3>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center">
-                        <CheckCircle2 className="size-3 mr-1" /> Connected
-                      </span>
-                    </div>
-
-                    <div className="space-y-4">
-                      {[
-                        { name: "Enterprise Next.js Web Portal", branch: "main", commit: "fe45a90", status: "Active", url: "https://liku.media" },
-                        { name: "Client ERP System", branch: "staging", commit: "a89d123", status: "Building", url: "https://staging.liku.media" }
-                      ].map((project, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl">
-                          <div className="space-y-1 text-left">
-                            <div className="text-xs font-bold text-white uppercase tracking-wider">{project.name}</div>
-                            <div className="text-[9px] text-neutral-500">
-                              Branch: <span className="text-neutral-400">{project.branch}</span> • Commit: <span className="text-neutral-400 font-mono">{project.commit}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                              project.status === "Active" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                            }`}>
-                              {project.status}
-                            </span>
-                            <a 
-                              href={project.url} 
-                              target="_blank" 
-                              className="p-1 hover:bg-white/10 rounded transition-all text-neutral-400 hover:text-white"
-                            >
-                              <ArrowUpRight className="size-4" />
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {/* -------------------- USER DIRECTORY TAB -------------------- */}
-        {activeTab === "users" && (
-          <div className="rounded-none border border-white/10 bg-white/[0.01] p-8 space-y-8 animate-fade-in-up">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-white">Full User Management Directory</h3>
-              <button 
-                onClick={() => setShowAddModal(true)}
-                className="text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center h-10"
-              >
-                <Plus className="size-4 mr-1.5" /> Add New User
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {isLoadingUsers ? (
-                <div className="flex py-10 justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                </div>
-              ) : (
-                platformUsers.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl text-xs">
-                    <div className="flex items-center space-x-4">
-                      <div className="rounded-full bg-white/5 p-3 text-neutral-400">
-                        <Users className="size-5" />
                       </div>
-                      <div className="text-left space-y-1">
-                        <div className="text-sm font-extrabold text-white">{item.name}</div>
-                        <div className="text-[10px] text-neutral-500">{item.phone}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                        item.role === "super_admin" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
-                        item.role === "admin" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                        item.role === "manager" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-neutral-500/10 text-neutral-400 border border-neutral-800"
-                      }`}>
-                        {item.role.replace("_", " ")}
-                      </span>
-                      <button 
-                        onClick={() => handleDeleteUser(item.phone, item.name)}
-                        className="text-neutral-500 hover:text-red-500 transition-colors p-2 hover:bg-white/5 rounded-full"
-                        title="Delete User"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                ))
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* -------------------- PROPOSAL INBOX TAB -------------------- */}
-        {activeTab === "messages" && (
-          <div className="rounded-none border border-white/10 bg-white/[0.01] p-8 space-y-8 animate-fade-in-up">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-white">Client Proposal Requests & Messages</h3>
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                {inboxMessages.length} Requests
-              </span>
-            </div>
-
+          {/* TAB 2: SMS GATEWAY MANAGEMENT */}
+          {activeTab === "sms" && (
             <div className="space-y-6">
-              {isLoadingMessages ? (
-                <div className="flex py-10 justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <SmsManagement
+                activeSubTab={smsSubTab}
+                onSubTabChange={(sub) => setSmsSubTab(sub)}
+                hideSubTabsNav={true}
+              />
+            </div>
+          )}
+
+          {/* TAB 3: USER DIRECTORY */}
+          {activeTab === "users" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800/80 p-6 rounded-2xl">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Users className="w-5 h-5 text-indigo-400" /> ইউজার ডিরেক্টরি ও অ্যাকাউন্ট কন্ট্রোল
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Cloud Firestore-এ সংরক্ষিত রেজিস্টার্ড এডমিন, ম্যানেজার ও ক্লায়েন্ট অ্যাকাউন্টস
+                  </p>
                 </div>
-              ) : inboxMessages.length === 0 ? (
-                <p className="text-xs text-neutral-500 text-center py-10">No proposal requests received yet.</p>
-              ) : (
-                inboxMessages.map((msg, idx) => (
-                  <div key={idx} className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4 text-left">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/5 pb-4">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shrink-0 shadow-lg shadow-indigo-600/30"
+                >
+                  <Plus className="w-4 h-4" /> নতুন ইউজার যুক্ত করুন
+                </button>
+              </div>
+
+              {/* Users Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {platformUsers.map((u, i) => (
+                  <div key={i} className="bg-slate-900/80 border border-slate-800/80 p-5 rounded-2xl relative group">
+                    <div className="flex items-start justify-between">
                       <div>
-                        <div className="text-[9px] font-mono text-neutral-500">{msg.id} • {new Date(msg.createdAt).toLocaleString()}</div>
-                        <h4 className="text-base font-extrabold text-white mt-1">{msg.name}</h4>
-                        <div className="text-[10px] text-neutral-400 mt-0.5">{msg.company !== "N/A" ? `Company: ${msg.company}` : "Individual Client"}</div>
+                        <h4 className="text-sm font-bold text-white">{u.name}</h4>
+                        <p className="text-xs text-slate-400 font-mono mt-0.5">{u.phone}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <a 
-                          href={`https://wa.me/${msg.phone.replace(/\D/g, "")}`}
-                          target="_blank"
-                          className="px-3.5 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-wider transition-all"
-                        >
-                          WhatsApp Reply
-                        </a>
-                        <a 
-                          href={`mailto:${msg.email}`}
-                          className="px-3.5 py-2 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-wider transition-all"
-                        >
-                          Email
-                        </a>
-                        <button 
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-full transition-all"
-                          title="Delete Request"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                          u.role === "super_admin"
+                            ? "bg-rose-950/80 text-rose-400 border-rose-800/60"
+                            : u.role === "admin"
+                            ? "bg-indigo-950/80 text-indigo-400 border-indigo-800/60"
+                            : "bg-slate-800 text-slate-300 border-slate-700"
+                        }`}
+                      >
+                        {u.role.replace("_", " ")}
+                      </span>
                     </div>
 
-                    {/* Metadata & Message */}
-                    <div className="space-y-3">
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-800/60 text-xs">
+                      <span className="text-emerald-400 flex items-center gap-1 text-[11px]">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Active
+                      </span>
+
+                      {u.phone !== "+880 1850290529" && (
+                        <button
+                          onClick={() => handleDeleteUser(u.phone, u.name)}
+                          className="text-rose-400 hover:text-rose-300 text-[11px] flex items-center gap-1 font-semibold opacity-80 hover:opacity-100 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> মুছুন
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add User Modal */}
+              {showAddModal && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Users className="w-4 h-4 text-indigo-400" /> নতুন ইউজার যোগ করুন
+                      </h3>
+                      <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAddUser} className="space-y-3">
                       <div>
-                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Phone</span>
-                        <span className="text-xs text-neutral-300 mt-0.5 block">{msg.phone}</span>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">নাম (Full Name)</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Tanvir Ahmed"
+                          value={newUserData.name}
+                          onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                        />
                       </div>
+
                       <div>
-                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Email</span>
-                        <span className="text-xs text-neutral-300 mt-0.5 block">{msg.email}</span>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">ফোন নম্বর (Phone)</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="01850290529"
+                          value={newUserData.phone}
+                          onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                        />
                       </div>
+
                       <div>
-                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Services Requested</span>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {msg.services && msg.services.length > 0 ? (
-                            msg.services.map((srv: string, sIdx: number) => (
-                              <span key={sIdx} className="text-[9px] font-bold bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-neutral-300">
-                                {srv}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[9px] text-neutral-500">None selected</span>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">রোল (Role)</label>
+                        <select
+                          value={newUserData.role}
+                          onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                        >
+                          <option value="client">Client / Partner</option>
+                          <option value="manager">Manager</option>
+                          <option value="admin">Administrator</option>
+                          <option value="super_admin">Super Admin</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">পিন (Security PIN)</label>
+                        <input
+                          type="password"
+                          required
+                          maxLength={6}
+                          value={newUserData.pin}
+                          onChange={(e) => setNewUserData({ ...newUserData, pin: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddModal(false)}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
+                        >
+                          বাতিল
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30"
+                        >
+                          সেভ করুন
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: PROPOSAL INBOX */}
+          {activeTab === "messages" && (
+            <div className="space-y-6">
+              <div className="bg-slate-900/80 border border-slate-800/80 p-6 rounded-2xl">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Inbox className="w-5 h-5 text-emerald-400" /> কাস্টমার ইনবক্স ও প্রস্তাবনা সাবমিশন
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Liku Media ওয়েবসাইট থেকে ক্লায়েন্টদের প্রেরিত তথ্য ও কাজ সংক্রান্ত মেসেজসমূহ
+                </p>
+              </div>
+
+              {inboxMessages.length === 0 ? (
+                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-12 text-center text-slate-400 text-xs">
+                  কোনো মেসেজ পাওয়া যায়নি।
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {inboxMessages.map((msg, i) => (
+                    <div key={msg.id || i} className="bg-slate-900/80 border border-slate-800/80 p-6 rounded-2xl space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                        <div>
+                          <h4 className="text-base font-bold text-white">{msg.name || "Anonymous Client"}</h4>
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mt-1">
+                            {msg.phone && <span className="flex items-center gap-1 font-mono"><Phone className="w-3.5 h-3.5" /> {msg.phone}</span>}
+                            {msg.email && <span className="flex items-center gap-1 font-mono"><Mail className="w-3.5 h-3.5" /> {msg.email}</span>}
+                            {msg.service && <span className="text-indigo-400 font-semibold">• সার্ভিস: {msg.service}</span>}
+                            {msg.budget && <span className="text-emerald-400 font-semibold">• বাজেট: ৳{msg.budget}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleString("bn-BD") : "Recent"}
+                          </span>
+                          {msg.id && (
+                            <button
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </div>
-                      <div>
-                        <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-extrabold block">Project Description</span>
-                        <p className="text-xs text-neutral-300 leading-relaxed mt-1 p-3 bg-white/[0.01] border border-white/5 rounded-xl whitespace-pre-wrap">
-                          {msg.message}
-                        </p>
+
+                      <div className="bg-slate-950/60 p-4 rounded-xl text-xs text-slate-200 leading-relaxed font-sans border border-slate-800/60 whitespace-pre-wrap">
+                        {msg.message}
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* -------------------- SYSTEM LOGS TAB -------------------- */}
-        {activeTab === "logs" && (
-          <div className="rounded-none border border-white/10 bg-white/[0.01] p-8 space-y-8 animate-fade-in-up">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-white">Full Event Logs & Cloud Security Audits</h3>
-              <Activity className="size-5 text-neutral-400" />
-            </div>
-
-            <div className="space-y-4">
-              {systemLogs.map((log, idx) => (
-                <div key={idx} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl text-xs font-mono flex items-center justify-between">
-                  <div className="text-left space-y-1">
-                    <span className="text-[#eab308] mr-2">[{log.time}]</span>
-                    <span className="text-neutral-300">{log.event}</span>
-                  </div>
-                  <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded ${
-                    log.status === "Success" ? "bg-emerald-500/10 text-emerald-400" :
-                    log.status === "Warning" ? "bg-red-500/10 text-red-400" : "bg-neutral-500/10 text-neutral-400"
-                  }`}>
-                    {log.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* -------------------- PRINT TAB -------------------- */}
-        {activeTab === "print" && (
-          <div className="rounded-none border border-white/10 bg-white/[0.01] p-8 space-y-8 animate-fade-in-up">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-white">All Print Production Orders</h3>
-              <Printer className="size-5 text-neutral-400" />
-            </div>
-
-            <div className="space-y-6">
-              {printJobs.map((job, idx) => (
-                <div key={idx} className="p-6 bg-white/[0.02] border border-white/5 space-y-4 rounded-2xl">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                      <div className="text-xs font-bold uppercase tracking-wider text-neutral-500">{job.id}</div>
-                      <h4 className="text-lg font-black uppercase tracking-tight text-white mt-1">{job.name}</h4>
-                    </div>
-                    <span className={`w-max text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                      job.status === "Finished" ? "bg-emerald-500/10 text-emerald-400" : "bg-primary/10 text-primary"
-                    }`}>
-                      {job.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 text-xs">
-                    <div>
-                      <span className="text-neutral-500 block">Print Volume</span>
-                      <span className="font-bold text-white mt-0.5 block">{job.qty}</span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 block">Colors Config</span>
-                      <span className="font-bold text-white mt-0.5 block">CMYK 4-Color Process</span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 block">Plate System</span>
-                      <span className="font-bold text-white mt-0.5 block">Direct CTP Digital Plates</span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 block">Paper Medium</span>
-                      <span className="font-bold text-white mt-0.5 block">300 GSM Art Card Matte</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* -------------------- SMS GATEWAY TAB -------------------- */}
-        {activeTab === "sms" && (
-          <div className="animate-fade-in-up">
-            <SmsManagement />
-          </div>
-        )}
-
-      </main>
-
-      {/* -------------------- ADD USER MODAL (POPUP) -------------------- */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#0a0a0a] border border-white/10 p-8 rounded-none w-full max-w-sm relative z-10 space-y-6">
-            <div className="text-center space-y-2">
-              <h4 className="text-xl font-extrabold uppercase tracking-tight text-white">Create New User</h4>
-              <p className="text-[10px] text-neutral-500 font-light">Insert details to store in Firestore database.</p>
-            </div>
-
-            <form onSubmit={handleAddUser} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block text-left">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newUserData.name}
-                  onChange={(e) => setNewUserData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. Kabir Hossain"
-                  className="w-full rounded-none border border-white/10 bg-white/[0.02] px-4 py-3 text-xs text-white outline-none focus:border-primary transition-all duration-200 h-10"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block text-left">Mobile Number</label>
-                <input
-                  type="tel"
-                  required
-                  value={newUserData.phone}
-                  onChange={(e) => setNewUserData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="e.g. 01700-000000"
-                  className="w-full rounded-none border border-white/10 bg-white/[0.02] px-4 py-3 text-xs text-white outline-none focus:border-primary transition-all duration-200 h-10"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block text-left">PIN Code (6 digits)</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  required
-                  value={newUserData.pin}
-                  onChange={(e) => setNewUserData(prev => ({ ...prev, pin: e.target.value }))}
-                  placeholder="e.g. 123456"
-                  className="w-full rounded-none border border-white/10 bg-white/[0.02] px-4 py-3 text-xs text-white outline-none focus:border-primary transition-all duration-200 h-10"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block text-left">System Role</label>
-                <select
-                  value={newUserData.role}
-                  onChange={(e) => setNewUserData(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full rounded-none border border-white/10 bg-[#0a0a0a] px-4 py-2.5 text-xs text-white outline-none focus:border-primary transition-all duration-200 h-10"
-                >
-                  <option value="client">Client (Default)</option>
-                  <option value="manager">Production Manager</option>
-                  <option value="admin">Administrator</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 border border-white/10 hover:bg-white/5 rounded-full py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all h-10"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-primary border border-primary text-primary-foreground hover:bg-transparent hover:text-primary rounded-full py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all h-10"
-                >
-                  Save User
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          )}
+        </main>
+      </div>
     </div>
   );
 }
