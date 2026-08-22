@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { calculateSmsUnits, generateApiKey } from "@/lib/sms";
+import { printSmsPdfReport } from "@/lib/pdf-report";
 import {
   Send,
   Globe,
@@ -27,12 +28,25 @@ import {
   Sparkles,
   Terminal,
   Zap,
+  Bell,
+  Slash,
+  MessageSquare,
+  ShieldAlert,
+  FileText,
+  Calendar,
+  Download,
 } from "lucide-react";
 
 export interface SmsManagementProps {
   activeSubTab?: "overview" | "send" | "websites" | "logs" | "docs" | "settings";
   onSubTabChange?: (tab: "overview" | "send" | "websites" | "logs" | "docs" | "settings") => void;
   hideSubTabsNav?: boolean;
+}
+
+export function formatBdt(amount: number | string): string {
+  const n = typeof amount === "string" ? parseFloat(amount) : Number(amount);
+  if (isNaN(n)) return "৳ 0.00";
+  return `৳ ${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function SmsManagement({
@@ -55,6 +69,10 @@ export function SmsManagement({
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
   const [loadingWebsites, setLoadingWebsites] = useState(true);
   const [loadingLogs, setLoadingLogs] = useState(true);
+
+  // Selected Website Sheet Drawer State
+  const [selectedSiteForSheet, setSelectedSiteForSheet] = useState<any | null>(null);
+  const [sheetSubTab, setSheetSubTab] = useState<"overview" | "recharge" | "notice" | "status" | "logs" | "docs">("overview");
 
   // Master Settings State
   const [masterSettings, setMasterSettings] = useState({
@@ -89,6 +107,14 @@ export function SmsManagement({
   const [newRateValue, setNewRateValue] = useState("");
   const [isUpdatingRate, setIsUpdatingRate] = useState(false);
 
+  // Edit Notice Modal
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [selectedSiteForNotice, setSelectedSiteForNotice] = useState<any>(null);
+  const [noticeText, setNoticeText] = useState("");
+  const [noticeType, setNoticeType] = useState<"info" | "warning" | "urgent">("info");
+  const [noticeEnabled, setNoticeEnabled] = useState(false);
+  const [isUpdatingNotice, setIsUpdatingNotice] = useState(false);
+
   // Send SMS Form State
   const [sendForm, setSendForm] = useState({
     siteId: "master",
@@ -110,6 +136,89 @@ export function SmsManagement({
 
   // Copy API Key feedback state
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+
+  // API Docs Website Selector & Snippet State
+  const [selectedDocWebsiteId, setSelectedDocWebsiteId] = useState<string>("demo");
+  const [docCopiedSnippetId, setDocCopiedSnippetId] = useState<string | null>(null);
+
+  const handleCopyDocSnippet = (text: string, snippetId: string) => {
+    navigator.clipboard.writeText(text);
+    setDocCopiedSnippetId(snippetId);
+    setTimeout(() => setDocCopiedSnippetId(null), 2000);
+  };
+
+  // PDF Report Export Modal State
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfFilterType, setPdfFilterType] = useState<"all" | "month" | "year" | "custom">("all");
+  const [pdfMonth, setPdfMonth] = useState<number>(new Date().getMonth() + 1);
+  const [pdfYear, setPdfYear] = useState<number>(new Date().getFullYear());
+  const [pdfStartDate, setPdfStartDate] = useState<string>(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
+  );
+  const [pdfEndDate, setPdfEndDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [pdfTargetSiteId, setPdfTargetSiteId] = useState<string>("all");
+
+  // Handle PDF Export Generation
+  const handleGeneratePdfReport = () => {
+    let filtered = [...smsLogs];
+
+    // Filter by website if specific
+    if (pdfTargetSiteId !== "all") {
+      filtered = filtered.filter((l) => l.websiteId === pdfTargetSiteId);
+    }
+
+    let dateRangeTitle = "";
+
+    if (pdfFilterType === "all") {
+      dateRangeTitle = "অল টাইম (All Time Full History)";
+    } else if (pdfFilterType === "month") {
+      filtered = filtered.filter((l) => {
+        const d = new Date(l.sentAt);
+        return d.getMonth() + 1 === Number(pdfMonth) && d.getFullYear() === Number(pdfYear);
+      });
+      const monthNames = [
+        "জানুয়ারি (Jan)", "ফেব্রুয়ারি (Feb)", "মার্চ (Mar)", "এপ্রিল (Apr)", 
+        "মে (May)", "জুন (Jun)", "জুলাই (Jul)", "আগস্ট (Aug)", 
+        "সেপ্টেম্বর (Sep)", "অক্টোবর (Oct)", "নভেম্বর (Nov)", "ডিসেম্বর (Dec)"
+      ];
+      dateRangeTitle = `মাস: ${monthNames[pdfMonth - 1]} ${pdfYear}`;
+    } else if (pdfFilterType === "year") {
+      filtered = filtered.filter((l) => {
+        const d = new Date(l.sentAt);
+        return d.getFullYear() === Number(pdfYear);
+      });
+      dateRangeTitle = `বছর: ${pdfYear}`;
+    } else if (pdfFilterType === "custom") {
+      const start = new Date(pdfStartDate);
+      const end = new Date(pdfEndDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter((l) => {
+        const d = new Date(l.sentAt);
+        return d >= start && d <= end;
+      });
+      dateRangeTitle = `কাস্টম তারিখ: ${pdfStartDate} থেকে ${pdfEndDate}`;
+    }
+
+    let siteName = "All Websites";
+    let domainName = "";
+    if (pdfTargetSiteId !== "all") {
+      const siteObj = websites.find((w) => w.id === pdfTargetSiteId);
+      if (siteObj) {
+        siteName = siteObj.name;
+        domainName = siteObj.domain;
+      }
+    }
+
+    printSmsPdfReport({
+      title: "SMS History & Charge Statement",
+      websiteName: siteName,
+      domain: domainName,
+      dateRangeText: dateRangeTitle,
+      logs: filtered,
+    });
+
+    setShowPdfModal(false);
+  };
 
   // API Playground State
   const [playgroundSiteKey, setPlaygroundSiteKey] = useState("");
@@ -256,9 +365,14 @@ export function SmsManagement({
     }
   };
 
-  // Update Website Account Status (Active / Pause / Terminate) via Server API
-  const handleUpdateStatus = async (siteId: string, newStatus: "active" | "paused" | "terminated") => {
-    const statusTitles = { active: "সক্রিয় (Active)", paused: "পজ (Pause)", terminated: "টারমিনেট (Terminate)" };
+  // Update Website Account Status (Active / Pause / Block / Terminate) via Server API
+  const handleUpdateStatus = async (siteId: string, newStatus: "active" | "paused" | "blocked" | "terminated") => {
+    const statusTitles = { 
+      active: "সক্রিয় (Active)", 
+      paused: "পজ (Pause)", 
+      blocked: "ব্লকড (Block)", 
+      terminated: "টারমিনেট (Terminate)" 
+    };
     if (!confirm(`আপনি কি এই একাউন্টের স্ট্যাটাস "${statusTitles[newStatus]}" করতে চান?`)) return;
 
     try {
@@ -275,6 +389,39 @@ export function SmsManagement({
       }
     } catch (err: any) {
       alert("স্ট্যাটাস পরিবর্তন ব্যর্থ: " + err.message);
+    }
+  };
+
+  // Save Website Notice via Server API
+  const handleSaveNotice = async () => {
+    if (!selectedSiteForNotice) return;
+    setIsUpdatingNotice(true);
+    try {
+      const res = await fetch("/api/admin/websites", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedSiteForNotice.id,
+          action: "update_notice",
+          noticeText,
+          noticeType,
+          noticeEnabled,
+        }),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        setShowNoticeModal(false);
+        setSelectedSiteForNotice(null);
+        setNoticeText("");
+        fetchWebsites();
+      } else {
+        alert("নোটিশ সেভ করতে ব্যর্থ: " + (json.error || "Server Error"));
+      }
+    } catch (err: any) {
+      alert("নোটিশ সেভ করতে ব্যর্থ: " + err.message);
+    } finally {
+      setIsUpdatingNotice(false);
     }
   };
 
@@ -528,18 +675,24 @@ export function SmsManagement({
   return (
     <div className="space-y-6 text-slate-100 font-sans">
       {/* Top Header Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950/90 border border-slate-800/80 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl">
+              <div className="p-3 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-2xl shadow-lg shadow-indigo-600/20">
                 <Smartphone className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white tracking-tight">SMS Gateway & Multi-Tenant Management</h1>
-                <p className="text-sm text-slate-400">
+                <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  SMS Gateway & Multi-Tenant Management
+                  <span className="text-[10px] font-bold bg-emerald-950 text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live System
+                  </span>
+                </h1>
+                <p className="text-xs text-slate-400 mt-0.5">
                   sms.net.bd প্রোভাইডার ইন্টিগ্রেশন, ব্যালেন্স কন্ট্রোল, এপিআই কী ও ওয়েবসাইট ম্যানেজমেন্ট
                 </p>
               </div>
@@ -547,22 +700,22 @@ export function SmsManagement({
           </div>
 
           {/* Upstream Provider Balance Widget */}
-          <div className="flex items-center gap-4 bg-slate-950/80 border border-slate-800 p-4 rounded-xl backdrop-blur-md">
+          <div className="flex items-center gap-4 bg-slate-950/90 border border-slate-800 p-4 rounded-2xl backdrop-blur-xl shadow-xl hover:border-emerald-500/40 transition">
             <div>
               <div className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-indigo-400" /> sms.net.bd প্রোভাইডার ব্যালেন্স
               </div>
-              <div className={`text-xl font-extrabold tracking-wide mt-0.5 ${
+              <div className={`text-2xl font-black tracking-tight mt-0.5 ${
                 isNaN(Number(providerBalance)) ? "text-amber-400 text-xs font-semibold" : "text-emerald-400"
               }`}>
-                {isNaN(Number(providerBalance)) ? providerBalance : `৳ ${providerBalance}`}
+                {isNaN(Number(providerBalance)) ? providerBalance : formatBdt(providerBalance)}
               </div>
             </div>
             <button
               onClick={fetchProviderBalance}
               disabled={isLoadingProviderBalance}
               title="রিফ্রেশ করুন"
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition border border-slate-700"
+              className="p-2.5 bg-slate-900 hover:bg-indigo-600 hover:text-white text-slate-300 rounded-xl transition border border-slate-800"
             >
               <RefreshCw className={`w-4 h-4 ${isLoadingProviderBalance ? "animate-spin text-indigo-400" : ""}`} />
             </button>
@@ -571,9 +724,9 @@ export function SmsManagement({
 
         {/* Missing API Key Warning Banner */}
         {(!masterSettings.providerApiKey || masterSettings.providerApiKey === "YOUR_API_KEY" || isNaN(Number(providerBalance))) && (
-          <div className="mt-4 bg-amber-950/80 border border-amber-800/80 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-amber-200 shadow-lg">
+          <div className="mt-5 bg-amber-950/80 border border-amber-800/80 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-amber-200 shadow-xl backdrop-blur-md">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
               <div>
                 <span className="font-bold text-amber-300 block text-sm">sms.net.bd মাস্টার API Key সেটিংসে বসানো নেই</span>
                 <span>আপনার portal.sms.net.bd অ্যাকাউন্ট থেকে আসল API Key এনে &quot;প্রোভাইডার সেটিংস&quot; অপশনে বসালেই লাইভ ব্যালেন্স দেখতে পাবেন।</span>
@@ -581,16 +734,16 @@ export function SmsManagement({
             </div>
             <button
               onClick={() => setActiveSubTab("settings")}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition shrink-0 shadow shadow-amber-600/30"
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition shrink-0 shadow-lg shadow-amber-600/30"
             >
               API Key প্রদান করুন
             </button>
           </div>
         )}
 
-        {/* Sub-Navigation Tabs (Rendered if not hidden for sidebar) */}
+        {/* Sub-Navigation Tabs */}
         {!hideSubTabsNav && (
-          <div className="flex items-center gap-2 overflow-x-auto mt-6 pt-4 border-t border-slate-800/80">
+          <div className="flex items-center gap-2.5 overflow-x-auto mt-6 pt-5 border-t border-slate-800/80">
             {[
               { id: "overview", label: "ওভারভিউ (Overview)", icon: Sparkles },
               { id: "send", label: "এসএমএস পাঠান (Send)", icon: Send },
@@ -605,10 +758,10 @@ export function SmsManagement({
                 <button
                   key={tab.id}
                   onClick={() => setActiveSubTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                     isActive
-                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
-                      : "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50"
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/40 border border-indigo-400/30"
+                      : "bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -624,125 +777,162 @@ export function SmsManagement({
       {activeSubTab === "overview" && (
         <div className="space-y-6">
           {/* Summary Stat Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl relative overflow-hidden shadow-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-slate-900/90 border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden shadow-xl hover:border-indigo-500/40 transition group">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-400">মোট ওয়েবসাইট / ক্লায়েন্ট</span>
-                <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">রেজিস্টার্ড ওয়েবসাইট</span>
+                <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20 group-hover:scale-110 transition">
                   <Globe className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-white mt-3">{totalWebsitesCount}</div>
-              <div className="text-xs text-slate-400 mt-1">
-                <span className="text-emerald-400 font-semibold">{activeWebsitesCount} টি</span> সক্রিয় অ্যাকাউন্টে চালু
+              <div className="text-3xl font-black text-white mt-3">{totalWebsitesCount} টি</div>
+              <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                <span className="text-emerald-400 font-bold">{activeWebsitesCount} টি</span> সক্রিয় সার্ভিস চালু রয়েছে
               </div>
             </div>
 
-            <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl relative overflow-hidden shadow-md">
+            <div className="bg-slate-900/90 border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden shadow-xl hover:border-emerald-500/40 transition group">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-400">মোট ক্লায়েন্ট ব্যালেন্স</span>
-                <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">মোট ক্লায়েন্ট ব্যালেন্স</span>
+                <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20 group-hover:scale-110 transition">
                   <CreditCard className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-emerald-400 mt-3">৳ {totalClientBalanceSum.toFixed(2)}</div>
+              <div className="text-3xl font-black text-emerald-400 mt-3">{formatBdt(totalClientBalanceSum)}</div>
               <div className="text-xs text-slate-400 mt-1">সব সাইটে বর্তমানে জমা রয়েছে</div>
             </div>
 
-            <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl relative overflow-hidden shadow-md">
+            <div className="bg-slate-900/90 border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden shadow-xl hover:border-indigo-500/40 transition group">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-400">মোট সেন্ট (Sent SMS)</span>
-                <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">মোট সেন্ট (Sent SMS)</span>
+                <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20 group-hover:scale-110 transition">
                   <Send className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-white mt-3">{totalSmsSentCount}</div>
-              <div className="text-xs text-slate-400 mt-1">সফলভাবে প্রেরিত মেসেজ</div>
+              <div className="text-3xl font-black text-white mt-3">{totalSmsSentCount} টি</div>
+              <div className="text-xs text-slate-400 mt-1">সফলভাবে ক্লায়েন্টকে ডেলিভারি</div>
             </div>
 
-            <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl relative overflow-hidden shadow-md">
+            <div className="bg-slate-900/90 border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden shadow-xl hover:border-amber-500/40 transition group">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-400">মোট সংগৃহীত চার্জ</span>
-                <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">মোট সার্ভিস রেভিনিউ</span>
+                <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20 group-hover:scale-110 transition">
                   <DollarSign className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-amber-400 mt-3">৳ {totalRevenueSum.toFixed(2)}</div>
+              <div className="text-3xl font-black text-amber-400 mt-3">{formatBdt(totalRevenueSum)}</div>
               <div className="text-xs text-slate-400 mt-1">এসএমএস সার্ভিস থেকে মোট আয়</div>
             </div>
           </div>
 
-          {/* Quick Actions & Recent Websites */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Quick Send Banner */}
-            <div className="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-                    <Zap className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">ইনস্ট্যান্ট এসএমএস ব্রডকাস্ট</h3>
-                    <p className="text-xs text-slate-400">মাস্টার অ্যাকাউন্ট বা নির্দিষ্ট ক্লায়েন্ট প্রোফাইল দিয়ে সরাসরি মেসেজ পাঠান</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setActiveSubTab("send")}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-indigo-600/20"
-                >
-                  মেসেজ উইন্ডো খুলুন
-                </button>
+          {/* Quick Actions Shortcuts */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button
+              onClick={() => {
+                setNewSiteData({ name: "", domain: "", balance: "500", ratePerSms: "0.35", clientPhone: "" });
+                setShowAddSiteModal(true);
+              }}
+              className="p-4 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 rounded-2xl flex items-center gap-3 transition text-left group shadow-lg"
+            >
+              <div className="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition">
+                <Plus className="w-5 h-5" />
               </div>
-
-              {/* Endpoint summary card */}
-              <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-4 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">গেটওয়ে এক্সটার্নাল এপিআই এন্ডপয়েন্ট:</span>
-                  <span className="text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded font-mono border border-emerald-800/40">
-                    POST & GET Supported
-                  </span>
-                </div>
-                <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto select-all">
-                  {origin}/api/v1/send-sms?api_key=YOUR_KEY&msg=Hello&to=88018...
-                </div>
-              </div>
-            </div>
-
-            {/* System Provider Status */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" /> গেটওয়ে স্ট্যাটাস
-                </h3>
-                <p className="text-xs text-slate-400 mb-4">sms.net.bd মেইন কানেকশন ও লাইভ প্রোভাইডার হেলথ</p>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                    <span className="text-slate-400">আপস্ট্রিম সার্ভিস</span>
-                    <span className="text-emerald-400 font-semibold">sms.net.bd (Online)</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                    <span className="text-slate-400">ডিফল্ট এসএমএস রেট</span>
-                    <span className="text-white font-semibold">৳ {masterSettings.defaultRate} / SMS</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                    <span className="text-slate-400">মাস্টার API Key</span>
-                    <span className="text-slate-300 font-mono">
-                      {masterSettings.providerApiKey
-                        ? `${masterSettings.providerApiKey.substring(0, 8)}...`
-                        : "Not Configured"}
-                    </span>
-                  </div>
-                </div>
+                <span className="text-xs font-bold text-white block">নতুন ওয়েবসাইট</span>
+                <span className="text-[10px] text-slate-400">নতুন সাইট যুক্ত করুন</span>
               </div>
+            </button>
 
+            <button
+              onClick={() => setActiveSubTab("send")}
+              className="p-4 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 rounded-2xl flex items-center gap-3 transition text-left group shadow-lg"
+            >
+              <div className="p-2.5 bg-emerald-600/20 text-emerald-400 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition">
+                <Send className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">এসএমএস পাঠান</span>
+                <span className="text-[10px] text-slate-400">ইনস্ট্যান্ট ব্রডকাস্ট</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                setPdfTargetSiteId("all");
+                setShowPdfModal(true);
+              }}
+              className="p-4 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 rounded-2xl flex items-center gap-3 transition text-left group shadow-lg"
+            >
+              <div className="p-2.5 bg-rose-600/20 text-rose-400 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition">
+                <Download className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">পিডিএফ রিপোর্ট</span>
+                <span className="text-[10px] text-slate-400">স্টেটমেন্ট ডাউনলোড</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab("docs")}
+              className="p-4 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 rounded-2xl flex items-center gap-3 transition text-left group shadow-lg"
+            >
+              <div className="p-2.5 bg-amber-600/20 text-amber-400 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition">
+                <Code className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">এপিআই গাইড</span>
+                <span className="text-[10px] text-slate-400">কপি কোড স্নিপেট</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Recent SMS History Feed */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-md font-bold text-white flex items-center gap-2">
+                <History className="w-5 h-5 text-indigo-400" /> সাম্প্রতিক লাইভ ট্রানজেকশন ও এসএমএস কার্যকলাপ
+              </h3>
               <button
-                onClick={() => setActiveSubTab("settings")}
-                className="w-full mt-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition"
+                onClick={() => setActiveSubTab("logs")}
+                className="text-xs font-bold text-indigo-400 hover:underline"
               >
-                প্রোভাইডার কনফিগারেশন চেঞ্জ করুন
+                সব দেখুন ↗
               </button>
             </div>
+
+            {smsLogs.length === 0 ? (
+              <div className="text-xs text-slate-400 text-center py-8">
+                এখনো কোনো এসএমএস পাঠানো হয়নি।
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {smsLogs.slice(0, 5).map((log) => (
+                  <div
+                    key={log.id}
+                    onClick={() => setSelectedLog(log)}
+                    className="p-3.5 bg-slate-950 hover:bg-slate-800/80 rounded-xl border border-slate-800/80 flex items-center justify-between gap-4 cursor-pointer transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-xs">{log.websiteName}</span>
+                          <span className="font-mono text-indigo-300 text-xs">({log.recipient})</span>
+                        </div>
+                        <p className="text-slate-400 text-[11px] line-clamp-1 mt-0.5">{log.message}</p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="text-emerald-400 font-bold text-xs block">{formatBdt(log.charge || 0)}</span>
+                      <span className="text-[10px] text-slate-500 block">{new Date(log.sentAt).toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -981,10 +1171,19 @@ export function SmsManagement({
                   </thead>
                   <tbody className="divide-y divide-slate-800/80 text-xs">
                     {websites.map((site) => (
-                      <tr key={site.id} className="hover:bg-slate-800/40 transition">
+                      <tr 
+                        key={site.id} 
+                        className="hover:bg-slate-800/50 cursor-pointer transition group"
+                        onClick={() => setSelectedSiteForSheet(site)}
+                      >
                         {/* Name & Domain */}
                         <td className="py-4 px-5">
-                          <div className="font-bold text-white text-sm">{site.name}</div>
+                          <div className="font-bold text-white text-sm group-hover:text-indigo-400 transition flex items-center gap-2">
+                            <span>{site.name}</span>
+                            <span className="text-[10px] font-normal text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800/60 opacity-0 group-hover:opacity-100 transition">
+                              ম্যানেজ করুন ↗
+                            </span>
+                          </div>
                           <div className="text-slate-400 font-mono text-[11px]">{site.domain || "No domain"}</div>
                           {site.clientPhone && (
                             <div className="text-[10px] text-indigo-300 mt-0.5">📞 {site.clientPhone}</div>
@@ -992,9 +1191,9 @@ export function SmsManagement({
                         </td>
 
                         {/* API Key */}
-                        <td className="py-4 px-5">
+                        <td className="py-4 px-5" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono bg-slate-950 px-2.5 py-1 rounded text-indigo-300 border border-slate-800 text-[11px]">
+                            <span className="font-mono bg-slate-950 px-2.5 py-1.5 rounded text-indigo-300 border border-slate-800 text-[11px]">
                               {site.apiKey ? `${site.apiKey.substring(0, 16)}...` : "N/A"}
                             </span>
                             <button
@@ -1008,99 +1207,64 @@ export function SmsManagement({
                                 <Copy className="w-3.5 h-3.5" />
                               )}
                             </button>
-                            <button
-                              onClick={() => handleRegenerateApiKey(site)}
-                              title="নতুন API Key জেনারেট করুন"
-                              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded transition"
-                            >
-                              <RefreshCw className="w-3.5 h-3.5" />
-                            </button>
                           </div>
                         </td>
 
                         {/* Balance */}
                         <td className="py-4 px-5">
                           <div className="font-bold text-emerald-400 text-sm">
-                            ৳ {(site.balance || 0).toFixed(2)}
+                            {formatBdt(site.balance || 0)}
                           </div>
-                          <button
-                            onClick={() => {
-                              setSelectedSiteForBalance(site);
-                              setBalanceAmount("");
-                              setShowBalanceModal(true);
-                            }}
-                            className="mt-1 text-[10px] text-indigo-400 hover:underline font-semibold flex items-center gap-1"
-                          >
-                            <CreditCard className="w-3 h-3" /> ব্যালেন্স পরিবর্তন
-                          </button>
                         </td>
 
-                        {/* Rate Per SMS */}
+                        {/* Rate Per SMS & Notice Indicator */}
                         <td className="py-4 px-5">
                           <div className="font-semibold text-slate-200">
-                            ৳ {(site.ratePerSms || 0.35).toFixed(2)} / SMS
+                            {formatBdt(site.ratePerSms || 0.35)} / SMS
                           </div>
-                          <button
-                            onClick={() => {
-                              setSelectedSiteForRate(site);
-                              setNewRateValue((site.ratePerSms || 0.35).toString());
-                              setShowRateModal(true);
-                            }}
-                            className="mt-1 text-[10px] text-indigo-400 hover:underline font-semibold flex items-center gap-1"
-                          >
-                            <Edit className="w-3 h-3" /> চার্জ পরিবর্তন
-                          </button>
+                          {site.noticeEnabled && (
+                            <div className="text-[10px] text-amber-400 font-semibold flex items-center gap-1 mt-1">
+                              <Bell className="w-3 h-3 animate-pulse" /> নোটিশ সক্রিয়
+                            </div>
+                          )}
                         </td>
 
                         {/* Status */}
                         <td className="py-4 px-5">
                           {site.status === "active" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-400 text-[11px] font-semibold border border-emerald-800">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 text-[11px] font-semibold border border-emerald-800">
                               <PlayCircle className="w-3 h-3" /> সক্রিয় (Active)
                             </span>
                           )}
                           {site.status === "paused" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-950 text-amber-400 text-[11px] font-semibold border border-amber-800">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-950 text-amber-400 text-[11px] font-semibold border border-amber-800">
                               <PauseCircle className="w-3 h-3" /> পজ (Paused)
                             </span>
                           )}
+                          {site.status === "blocked" && (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-950 text-red-400 text-[11px] font-semibold border border-red-800">
+                              <Slash className="w-3 h-3" /> ব্লকড (Blocked)
+                            </span>
+                          )}
                           {site.status === "terminated" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-950 text-rose-400 text-[11px] font-semibold border border-rose-800">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-950 text-rose-400 text-[11px] font-semibold border border-rose-800">
                               <XCircle className="w-3 h-3" /> টারমিনেটেড
                             </span>
                           )}
                         </td>
 
                         {/* Actions */}
-                        <td className="py-4 px-5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {site.status !== "active" && (
-                              <button
-                                onClick={() => handleUpdateStatus(site.id, "active")}
-                                className="px-2.5 py-1 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded text-[11px] font-medium border border-emerald-700"
-                              >
-                                Active
-                              </button>
-                            )}
-                            {site.status !== "paused" && (
-                              <button
-                                onClick={() => handleUpdateStatus(site.id, "paused")}
-                                className="px-2.5 py-1 bg-amber-900/60 hover:bg-amber-800 text-amber-200 rounded text-[11px] font-medium border border-amber-700"
-                              >
-                                Pause
-                              </button>
-                            )}
-                            {site.status !== "terminated" && (
-                              <button
-                                onClick={() => handleUpdateStatus(site.id, "terminated")}
-                                className="px-2.5 py-1 bg-rose-900/60 hover:bg-rose-800 text-rose-200 rounded text-[11px] font-medium border border-rose-700"
-                              >
-                                Terminate
-                              </button>
-                            )}
+                        <td className="py-4 px-5 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setSelectedSiteForSheet(site)}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition flex items-center gap-1.5"
+                            >
+                              <Sliders className="w-3.5 h-3.5" /> ম্যানেজ (Sheet)
+                            </button>
                             <button
                               onClick={() => handleDeleteWebsite(site.id, site.name)}
-                              className="p-1.5 text-slate-500 hover:text-rose-400 transition"
+                              className="p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition"
                               title="Delete Website"
                             >
                               <XCircle className="w-4 h-4" />
@@ -1159,6 +1323,16 @@ export function SmsManagement({
                 <option value="Sent">Sent (সফল)</option>
                 <option value="Failed">Failed (ব্যর্থ)</option>
               </select>
+
+              <button
+                onClick={() => {
+                  setPdfTargetSiteId(logSiteFilter);
+                  setShowPdfModal(true);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-600/30 flex items-center gap-1.5 transition shrink-0"
+              >
+                <Download className="w-4 h-4" /> পিডিএফ ডাউনলোড
+              </button>
             </div>
           </div>
 
@@ -1224,51 +1398,183 @@ export function SmsManagement({
       )}
 
       {/* SUB-TAB CONTENT 5: API DOCUMENTATION & PLAYGROUND */}
-      {activeSubTab === "docs" && (
-        <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl space-y-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Code className="w-5 h-5 text-indigo-400" /> এক্সটার্নাল ওয়েবসাইট ইন্টিগ্রেশন নির্দেশিকা (API Docs)
-            </h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              যেকোনো ওয়েবসাইট (WordPress, WooCommerce, Custom PHP, Node.js, Python, Laravel) থেকে আপনার জেনারেট করা API Key ব্যবহার করে মেসেজ পাঠাতে নিচের এন্ডপয়েন্টটি কল করুন:
-            </p>
+      {activeSubTab === "docs" && (() => {
+        const activeDocSite = websites.find((w) => w.id === selectedDocWebsiteId);
+        const activeApiKey = activeDocSite ? activeDocSite.apiKey : "YOUR_WEBSITE_API_KEY";
+        const activeSiteName = activeDocSite ? activeDocSite.name : "Custom Website";
 
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2 font-mono text-xs">
-              <div className="flex items-center gap-3">
-                <span className="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">POST & GET</span>
-                <span className="text-emerald-400 font-bold">{origin}/api/v1/send-sms</span>
+        return (
+          <div className="space-y-6">
+            {/* Top Selector Card */}
+            <div className="p-5 bg-gradient-to-r from-indigo-950/80 via-slate-950 to-slate-900 border border-indigo-500/40 rounded-2xl space-y-4 shadow-xl">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-indigo-400" /> ইন্টিগ্রেশন ক্লায়েন্ট ওয়েবসাইট সিলেক্টর (Website Key Injector)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    ওয়েবসাইট সিলেক্ট করলে নিচের সকল কোড স্নিপেটে ওই ওয়েবসাইটের লাইভ API Key সংক্রিয়ভাবে বসে যাবে:
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <select
+                    value={selectedDocWebsiteId}
+                    onChange={(e) => setSelectedDocWebsiteId(e.target.value)}
+                    className="w-full md:w-64 bg-slate-900 border border-indigo-500/50 rounded-xl px-3 py-2 text-xs font-bold text-indigo-300 focus:outline-none"
+                  >
+                    <option value="demo">ডেমো (YOUR_WEBSITE_API_KEY)</option>
+                    {websites.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({w.domain || "No Domain"})
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => {
+                      const fullGuide = `=== Liku Media SMS Integration Guide ===
+Website Name: ${activeSiteName}
+API Key: ${activeApiKey}
+SMS Send Endpoint: ${origin}/api/v1/send-sms
+Status Endpoint: ${origin}/api/v1/status?api_key=${activeApiKey}
+
+1. Universal Floating Notice & Block Modal Script Tag (HTML):
+<script src="${origin}/api/v1/sdk?api_key=${activeApiKey}"></script>
+
+2. cURL Command (Send SMS):
+curl -X POST ${origin}/api/v1/send-sms \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "api_key": "${activeApiKey}",
+    "msg": "Hello! Your OTP is 123456",
+    "to": "8801800000000"
+  }'
+
+3. JavaScript (fetch) Example:
+async function sendSms() {
+  const res = await fetch("${origin}/api/v1/send-sms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: "${activeApiKey}",
+      msg: "আপনার অর্ডারটি সফল হয়েছে।",
+      to: "8801800000000"
+    })
+  });
+  console.log(await res.json());
+}
+`;
+                      handleCopyDocSnippet(fullGuide, "full_guide");
+                    }}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 shrink-0 transition"
+                  >
+                    {docCopiedSnippetId === "full_guide" ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" /> কপি হয়েছে!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" /> কপি সম্পূর্ণ গাইড ফাইল
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Code Examples */}
-            <div className="space-y-4 pt-4 border-t border-slate-800">
-              <h3 className="text-sm font-semibold text-white">কোড স্পনিপেট (Code Samples)</h3>
+            <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl space-y-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Code className="w-5 h-5 text-indigo-400" /> এক্সটার্নাল ওয়েবসাইট ইন্টিগ্রেশন নির্দেশিকা (API Docs)
+              </h2>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                যেকোনো ওয়েবসাইট (WordPress, WooCommerce, Custom PHP, Node.js, Python, Laravel) থেকে <span className="text-indigo-400 font-bold">{activeSiteName}</span> এর API Key ব্যবহার করে মেসেজ পাঠাতে নিচের এন্ডপয়েন্টটি কল করুন:
+              </p>
 
-              {/* cURL Example */}
-              <div className="space-y-1">
-                <span className="text-xs text-indigo-400 font-medium">1. cURL Command</span>
-                <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 font-mono text-xs">
+                <div className="flex items-center gap-3">
+                  <span className="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">POST & GET</span>
+                  <span className="text-emerald-400 font-bold">{origin}/api/v1/send-sms</span>
+                  <span className="text-slate-400 text-[10px] font-sans">(এসএমএস পাঠানোর জন্য)</span>
+                </div>
+                <div className="flex items-center gap-3 pt-2 border-t border-slate-800/60">
+                  <span className="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">POST & GET</span>
+                  <span className="text-amber-400 font-bold">{origin}/api/v1/status?api_key={activeApiKey}</span>
+                  <span className="text-slate-400 text-[10px] font-sans">(ব্যালেন্স, ব্লক স্ট্যাটাস & নোটিশ পাওয়ার জন্য)</span>
+                </div>
+              </div>
+
+              {/* Code Examples */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                <h3 className="text-sm font-semibold text-white">কোড স্পনিপেট (Code Samples) — <span className="text-indigo-400">{activeSiteName}</span></h3>
+
+                {/* Universal Notice SDK */}
+                <div className="space-y-2 p-4 bg-slate-950 border border-amber-500/30 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-amber-400 font-bold flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" /> ১. ইউনিভার্সাল কাস্টমার নোটিশ ও ব্লক ডায়লগ (Universal Floating Dialog SDK)
+                    </span>
+                    <button
+                      onClick={() => handleCopyDocSnippet(`<script src="${origin}/api/v1/sdk?api_key=${activeApiKey}"></script>`, "sdk_tag")}
+                      className="text-[11px] bg-amber-950 text-amber-300 font-bold px-2.5 py-1 rounded border border-amber-800 hover:bg-amber-900 transition flex items-center gap-1"
+                    >
+                      {docCopiedSnippetId === "sdk_tag" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />} কপি স্ক্রিপ্ট ট্যাগ
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    যেকোনো ক্লায়েন্ট ওয়েবসাইটের (WordPress, WooCommerce, Custom PHP, React, Laravel) <code className="text-amber-300">&lt;head&gt;</code> বা <code className="text-amber-300">&lt;footer&gt;</code> এ এই ১-লাইনের স্ক্রিপ্ট ট্যাগটি পেস্ট করে দিলে একাউন্ট ব্লক থাকলে বা নোটিশ অন থাকলে যেকোনো ওয়েবসাইটে একই রকম সুন্দর পপ-আপ মেসেজ দেখাবে:
+                  </p>
+                  <pre className="p-3 bg-slate-900 rounded-xl text-xs font-mono text-emerald-300 border border-slate-800 overflow-x-auto select-all">
+{`<script src="${origin}/api/v1/sdk?api_key=${activeApiKey}"></script>`}
+                  </pre>
+                </div>
+
+                {/* Status & Notice Check Example */}
+                <div className="space-y-1">
+                  <span className="text-xs text-amber-400 font-medium">২. অ্যাকাউন্ট স্ট্যাটাস, নোটিশ & ব্যালেন্স পাওয়ার API কল (`/api/v1/status`)</span>
+                  <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
+{`async function checkWebsiteAccountStatus() {
+  const response = await fetch("${origin}/api/v1/status?api_key=${activeApiKey}");
+  const result = await response.json();
+  
+  if (result.data.is_blocked) {
+    console.error("Account is Blocked! " + result.msg);
+    return;
+  }
+  
+  if (result.data.notice.enabled) {
+    alert("এডমিন বার্তা: " + result.data.notice.text);
+  }
+  
+  console.log("Current Balance:", result.data.balance);
+}`}
+                  </pre>
+                </div>
+
+                {/* cURL Example */}
+                <div className="space-y-1">
+                  <span className="text-xs text-indigo-400 font-medium">৩. cURL Command (Send SMS)</span>
+                  <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
 {`curl -X POST ${origin}/api/v1/send-sms \\
   -H "Content-Type: application/json" \\
   -d '{
-    "api_key": "YOUR_WEBSITE_API_KEY",
+    "api_key": "${activeApiKey}",
     "msg": "Hello! Your verification code is 123456",
     "to": "8801800000000"
   }'`}
-                </pre>
-              </div>
+                  </pre>
+                </div>
 
-              {/* Node.js Example */}
-              <div className="space-y-1">
-                <span className="text-xs text-indigo-400 font-medium">2. JavaScript / Node.js (fetch)</span>
-                <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
+                {/* Node.js Example */}
+                <div className="space-y-1">
+                  <span className="text-xs text-indigo-400 font-medium">৪. JavaScript / Node.js (fetch)</span>
+                  <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
 {`async function sendSms() {
   const response = await fetch("${origin}/api/v1/send-sms", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      api_key: "YOUR_WEBSITE_API_KEY",
+      api_key: "${activeApiKey}",
       msg: "আপনার অর্ডারটি সফল হয়েছে।",
       to: "8801800000000"
     })
@@ -1276,16 +1582,16 @@ export function SmsManagement({
   const data = await response.json();
   console.log(data);
 }`}
-                </pre>
-              </div>
+                  </pre>
+                </div>
 
-              {/* PHP Example */}
-              <div className="space-y-1">
-                <span className="text-xs text-indigo-400 font-medium">3. PHP / WordPress Snippet</span>
-                <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
+                {/* PHP Example */}
+                <div className="space-y-1">
+                  <span className="text-xs text-indigo-400 font-medium">৫. PHP / WordPress Snippet</span>
+                  <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 border border-slate-800 overflow-x-auto select-all">
 {`$url = "${origin}/api/v1/send-sms";
 $data = array(
-    'api_key' => 'YOUR_WEBSITE_API_KEY',
+    'api_key' => '${activeApiKey}',
     'msg' => 'Test SMS Message',
     'to' => '8801800000000'
 );
@@ -1300,73 +1606,74 @@ $options = array(
 $context  = stream_context_create($options);
 $result = file_get_contents($url, false, $context);
 echo $result;`}
-                </pre>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive API Playground */}
-          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl space-y-4">
-            <h3 className="text-md font-bold text-white flex items-center gap-2">
-              <Terminal className="w-5 h-5 text-emerald-400" /> লাইভ এপিআই টেস্টার (Interactive API Playground)
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">API Key সিলেক্ট করুন</label>
-                <select
-                  value={playgroundSiteKey}
-                  onChange={(e) => setPlaygroundSiteKey(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                >
-                  {websites.map((w) => (
-                    <option key={w.id} value={w.apiKey}>
-                      {w.name} ({w.apiKey ? w.apiKey.substring(0, 12) + "..." : "No Key"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">টপ টেস্ট নাম্বার</label>
-                <input
-                  type="text"
-                  value={playgroundPhone}
-                  onChange={(e) => setPlaygroundPhone(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">টেস্ট মেসেজ</label>
-                <input
-                  type="text"
-                  value={playgroundMsg}
-                  onChange={(e) => setPlaygroundMsg(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                />
+                  </pre>
+                </div>
               </div>
             </div>
 
-            <button
-              onClick={handleRunPlayground}
-              disabled={isTestingApi}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center gap-2"
-            >
-              {isTestingApi ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />} টেস্ট কল এক্সিকিউট করুন
-            </button>
+            {/* Interactive API Playground */}
+            <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl space-y-4">
+              <h3 className="text-md font-bold text-white flex items-center gap-2">
+                <Terminal className="w-5 h-5 text-emerald-400" /> লাইভ এপিআই টেস্টার (Interactive API Playground)
+              </h3>
 
-            {playgroundResult && (
-              <div className="mt-4 p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-                <span className="text-xs font-semibold text-slate-400 block">সার্ভার রেসপন্স (HTTP Response):</span>
-                <pre className="text-xs font-mono text-emerald-400 overflow-x-auto">
-                  {JSON.stringify(playgroundResult, null, 2)}
-                </pre>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">API Key সিলেক্ট করুন</label>
+                  <select
+                    value={playgroundSiteKey}
+                    onChange={(e) => setPlaygroundSiteKey(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  >
+                    {websites.map((w) => (
+                      <option key={w.id} value={w.apiKey}>
+                        {w.name} ({w.apiKey ? w.apiKey.substring(0, 12) + "..." : "No Key"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">টপ টেস্ট নাম্বার</label>
+                  <input
+                    type="text"
+                    value={playgroundPhone}
+                    onChange={(e) => setPlaygroundPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">টেস্ট মেসেজ</label>
+                  <input
+                    type="text"
+                    value={playgroundMsg}
+                    onChange={(e) => setPlaygroundMsg(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
               </div>
-            )}
+
+              <button
+                onClick={handleRunPlayground}
+                disabled={isTestingApi}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center gap-2"
+              >
+                {isTestingApi ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />} টেস্ট কল এক্সিকিউট করুন
+              </button>
+
+              {playgroundResult && (
+                <div className="mt-4 p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                  <span className="text-xs font-semibold text-slate-400 block">সার্ভার রেসপন্স (HTTP Response):</span>
+                  <pre className="text-xs font-mono text-emerald-400 overflow-x-auto">
+                    {JSON.stringify(playgroundResult, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* SUB-TAB CONTENT 6: PROVIDER SETTINGS */}
       {activeSubTab === "settings" && (
@@ -1634,7 +1941,88 @@ echo $result;`}
         </div>
       )}
 
-      {/* MODAL 4: LOG DETAIL VIEW */}
+      {/* MODAL: EDIT NOTICE */}
+      {showNoticeModal && selectedSiteForNotice && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Bell className="w-5 h-5 text-amber-400" /> ওয়েবসাইট নোটিশ সেটিং (Customer Notice)
+              </h3>
+              <button onClick={() => setShowNoticeModal(false)} className="text-slate-400 hover:text-white">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              ওয়েবসাইট: <span className="text-white font-bold">{selectedSiteForNotice.name}</span>
+            </p>
+
+            <div className="space-y-4 text-xs">
+              {/* Notice Enable Toggle */}
+              <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <div>
+                  <span className="font-bold text-white block">নোটিশ প্রদর্শন স্ট্যাটাস</span>
+                  <span className="text-[10px] text-slate-400">কাস্টমারের ওয়েবসাইট এপিআই রেসপন্সে এই বার্তাটি প্রদর্শন করা হবে</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNoticeEnabled(!noticeEnabled)}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition ${
+                    noticeEnabled ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  {noticeEnabled ? "সক্রিয় (Active)" : "নিষ্ক্রিয় (Off)"}
+                </button>
+              </div>
+
+              {/* Notice Type Selector */}
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">নোটিশ ধরন (Notice Type)</label>
+                <select
+                  value={noticeType}
+                  onChange={(e) => setNoticeType(e.target.value as any)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="info">তথ্যমূলক (Information - Info)</option>
+                  <option value="warning">সতর্কবার্তা (Warning / Recharge Needed)</option>
+                  <option value="urgent">জরুরি বার্তা (Urgent / Maintenance)</option>
+                </select>
+              </div>
+
+              {/* Notice Message Textarea */}
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">নোটিশ বার্তা (Message Text)</label>
+                <textarea
+                  rows={4}
+                  placeholder="যেমন: আপনার অ্যাকাউন্টে ব্যালেন্স কম রয়েছে, অনুগ্রহ করে রিচার্জ করুন।"
+                  value={noticeText}
+                  onChange={(e) => setNoticeText(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNoticeModal(false)}
+                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl font-medium"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNotice}
+                  disabled={isUpdatingNotice}
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-600/30 flex items-center gap-2"
+                >
+                  {isUpdatingNotice ? <RefreshCw className="w-4 h-4 animate-spin text-slate-950" /> : "নোটিশ সেভ করুন"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedLog && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl">
@@ -1703,6 +2091,638 @@ echo $result;`}
           </div>
         </div>
       )}
+
+      {/* MODAL 5: FULL WEBSITE CONTROL SHEET DRAWER */}
+      {selectedSiteForSheet && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-end transition-opacity duration-300">
+          <div 
+            className="fixed inset-0" 
+            onClick={() => setSelectedSiteForSheet(null)} 
+          />
+          
+          <div className="relative z-10 w-full max-w-2xl bg-slate-900 border-l border-slate-800 shadow-2xl h-full flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
+            {/* Drawer Header */}
+            <div className="p-6 bg-slate-950 border-b border-slate-800 sticky top-0 z-20 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    {selectedSiteForSheet.name}
+                    {selectedSiteForSheet.status === "active" && (
+                      <span className="text-[10px] bg-emerald-950 text-emerald-400 font-bold px-2 py-0.5 rounded border border-emerald-800">
+                        সক্রিয় (Active)
+                      </span>
+                    )}
+                    {selectedSiteForSheet.status === "paused" && (
+                      <span className="text-[10px] bg-amber-950 text-amber-400 font-bold px-2 py-0.5 rounded border border-amber-800">
+                        পজ (Paused)
+                      </span>
+                    )}
+                    {selectedSiteForSheet.status === "blocked" && (
+                      <span className="text-[10px] bg-red-950 text-red-400 font-bold px-2 py-0.5 rounded border border-red-800">
+                        ব্লকড (Blocked)
+                      </span>
+                    )}
+                    {selectedSiteForSheet.status === "terminated" && (
+                      <span className="text-[10px] bg-rose-950 text-rose-400 font-bold px-2 py-0.5 rounded border border-rose-800">
+                        টারমিনেট
+                      </span>
+                    )}
+                  </h2>
+                  <p className="text-xs text-slate-400 font-mono">
+                    {selectedSiteForSheet.domain || "Domain not set"} • ID: {selectedSiteForSheet.id}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedSiteForSheet(null)}
+                className="p-2 text-slate-400 hover:text-white bg-slate-800/60 rounded-xl hover:bg-slate-800 transition"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Quick Live Balance Banner */}
+            <div className="p-6 space-y-6 flex-1">
+              <div className="p-5 bg-gradient-to-r from-emerald-950/80 via-slate-950 to-indigo-950/80 border border-emerald-800/40 rounded-2xl flex items-center justify-between shadow-lg">
+                <div>
+                  <span className="text-xs font-semibold text-slate-400 block">বর্তমান ক্লায়েন্ট ব্যালেন্স</span>
+                  <div className="text-3xl font-black text-emerald-400 mt-1 tracking-tight">
+                    {formatBdt(selectedSiteForSheet.balance || 0)}
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">
+                    রেট: <span className="text-slate-200 font-bold">{formatBdt(selectedSiteForSheet.ratePerSms || 0.35)} / SMS</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedSiteForBalance(selectedSiteForSheet);
+                      setBalanceAmount("");
+                      setShowBalanceModal(true);
+                    }}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-1.5"
+                  >
+                    <CreditCard className="w-4 h-4" /> ব্যালেন্স পরিবর্তন
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-Navigation Inside Sheet */}
+              <div className="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
+                {[
+                  { id: "overview", label: "ওভারভিউ & API Key", icon: Key },
+                  { id: "recharge", label: "ব্যালেন্স & রেট", icon: DollarSign },
+                  { id: "notice", label: "কাস্টমার নোটিশ", icon: Bell },
+                  { id: "status", label: "স্ট্যাটাস & সিকিউরিটি", icon: ShieldAlert },
+                  { id: "logs", label: "এসএমএস ইতিহাস", icon: History },
+                  { id: "docs", label: "API Docs & গাইড", icon: Code },
+                ].map((t) => {
+                  const Icon = t.icon || Key;
+                  const isActive = sheetSubTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setSheetSubTab(t.id as any)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                        isActive 
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30" 
+                          : "bg-slate-950 text-slate-400 hover:bg-slate-800 border border-slate-800"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* SHEET TAB 1: OVERVIEW & API KEY */}
+              {sheetSubTab === "overview" && (
+                <div className="space-y-5">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                    <label className="text-xs font-bold text-slate-300 block">লাইভ API Key (কাস্টমারের ওয়েবসাইটে ব্যবহারের জন্য)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={selectedSiteForSheet.apiKey || ""}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-indigo-300 font-mono"
+                      />
+                      <button
+                        onClick={() => handleCopyKey(selectedSiteForSheet.apiKey, selectedSiteForSheet.id)}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shrink-0 flex items-center gap-1"
+                      >
+                        <Copy className="w-4 h-4" /> কপি
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleRegenerateApiKey(selectedSiteForSheet);
+                          setSelectedSiteForSheet(null);
+                        }}
+                        className="p-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl shrink-0"
+                        title="নতুন কী জেনারেট"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                      <span className="text-[10px] text-slate-400 block font-semibold">মোট পাঠানো মেসেজ</span>
+                      <span className="text-xl font-bold text-white mt-1 block">{selectedSiteForSheet.totalSent || 0} টি</span>
+                    </div>
+                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                      <span className="text-[10px] text-slate-400 block font-semibold">মোট সার্ভিস খরচ</span>
+                      <span className="text-xl font-bold text-emerald-400 mt-1 block">
+                        {formatBdt(selectedSiteForSheet.totalSpent || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SHEET TAB 2: RECHARGE & RATE */}
+              {sheetSubTab === "recharge" && (
+                <div className="space-y-5">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-4">
+                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-emerald-400" /> কুইক রিচার্জ চিপস (Quick Amount Chips)
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[500, 1000, 5000, 10000, 50000, 110000].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSiteForBalance(selectedSiteForSheet);
+                            setBalanceAmount(amt.toString());
+                            setShowBalanceModal(true);
+                          }}
+                          className="py-2.5 px-3 bg-slate-900 hover:bg-indigo-600 hover:text-white text-emerald-400 font-mono font-bold rounded-xl border border-slate-800 text-xs transition"
+                        >
+                          + {formatBdt(amt)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-white block">প্রতি-এসএমএস চার্জ (Rate per SMS)</span>
+                      <span className="text-[10px] text-slate-400">বর্তমান চার্জ রেট: {formatBdt(selectedSiteForSheet.ratePerSms || 0.35)}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedSiteForRate(selectedSiteForSheet);
+                        setNewRateValue((selectedSiteForSheet.ratePerSms || 0.35).toString());
+                        setShowRateModal(true);
+                      }}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <Edit className="w-4 h-4" /> রেট পরিবর্তন
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SHEET TAB 3: NOTICE SETTING */}
+              {sheetSubTab === "notice" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white">নোটিশ স্ট্যাটাস</span>
+                      <span className={`px-2.5 py-1 rounded text-[10px] font-bold ${
+                        selectedSiteForSheet.noticeEnabled ? "bg-amber-950 text-amber-400 border border-amber-800" : "bg-slate-800 text-slate-400"
+                      }`}>
+                        {selectedSiteForSheet.noticeEnabled ? "সক্রিয় (Active)" : "বন্ধ (Disabled)"}
+                      </span>
+                    </div>
+
+                    {selectedSiteForSheet.noticeText && (
+                      <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 text-xs text-amber-200">
+                        &quot;{selectedSiteForSheet.noticeText}&quot;
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setSelectedSiteForNotice(selectedSiteForSheet);
+                        setNoticeText(selectedSiteForSheet.noticeText || "");
+                        setNoticeType(selectedSiteForSheet.noticeType || "info");
+                        setNoticeEnabled(Boolean(selectedSiteForSheet.noticeEnabled));
+                        setShowNoticeModal(true);
+                      }}
+                      className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs shadow transition flex items-center justify-center gap-2"
+                    >
+                      <Bell className="w-4 h-4" /> নোটিশ এডিট বা পরিবর্তন করুন
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SHEET TAB 4: STATUS & SECURITY */}
+              {sheetSubTab === "status" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                    <span className="text-xs font-bold text-white block">একাউন্ট স্ট্যাটাস পরিবর্তন করুন</span>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => {
+                          handleUpdateStatus(selectedSiteForSheet.id, "active");
+                          setSelectedSiteForSheet(null);
+                        }}
+                        className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
+                          selectedSiteForSheet.status === "active"
+                            ? "bg-emerald-950 border-emerald-700 text-emerald-400"
+                            : "bg-slate-900 border-slate-800 text-slate-300 hover:border-emerald-700"
+                        }`}
+                      >
+                        <PlayCircle className="w-4 h-4" /> Active (সক্রিয়)
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleUpdateStatus(selectedSiteForSheet.id, "paused");
+                          setSelectedSiteForSheet(null);
+                        }}
+                        className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
+                          selectedSiteForSheet.status === "paused"
+                            ? "bg-amber-950 border-amber-700 text-amber-400"
+                            : "bg-slate-900 border-slate-800 text-slate-300 hover:border-amber-700"
+                        }`}
+                      >
+                        <PauseCircle className="w-4 h-4" /> Pause (পজ)
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleUpdateStatus(selectedSiteForSheet.id, "blocked");
+                          setSelectedSiteForSheet(null);
+                        }}
+                        className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
+                          selectedSiteForSheet.status === "blocked"
+                            ? "bg-red-950 border-red-700 text-red-400"
+                            : "bg-slate-900 border-slate-800 text-slate-300 hover:border-red-700"
+                        }`}
+                      >
+                        <Slash className="w-4 h-4" /> Block (ব্লকড)
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleUpdateStatus(selectedSiteForSheet.id, "terminated");
+                          setSelectedSiteForSheet(null);
+                        }}
+                        className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
+                          selectedSiteForSheet.status === "terminated"
+                            ? "bg-rose-950 border-rose-700 text-rose-400"
+                            : "bg-slate-900 border-slate-800 text-slate-300 hover:border-rose-700"
+                        }`}
+                      >
+                        <XCircle className="w-4 h-4" /> Terminate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SHEET TAB 5: SMS LOGS */}
+              {sheetSubTab === "logs" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white block">সাম্প্রতিক প্রেরিত মেসেজ তালিকা</span>
+                      <button
+                        onClick={() => {
+                          setPdfTargetSiteId(selectedSiteForSheet.id);
+                          setShowPdfModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow"
+                      >
+                        <Download className="w-3.5 h-3.5" /> পিডিএফ রিপোর্ট
+                      </button>
+                    </div>
+                    {smsLogs.filter((l) => l.websiteId === selectedSiteForSheet.id).length === 0 ? (
+                      <div className="text-xs text-slate-400 text-center py-6">
+                        এই ওয়েবসাইট থেকে এখনো কোনো মেসেজ পাঠানো হয়নি।
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {smsLogs
+                          .filter((l) => l.websiteId === selectedSiteForSheet.id)
+                          .map((log) => (
+                            <div key={log.id} className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-indigo-300 font-mono">{log.recipient}</span>
+                                <span className="text-emerald-400 font-bold">{formatBdt(log.charge || 0)}</span>
+                              </div>
+                              <p className="text-slate-300 text-[11px] line-clamp-1">{log.message}</p>
+                              <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                                <span>{new Date(log.sentAt).toLocaleString()}</span>
+                                <span className={log.status === "Sent" ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                                  {log.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* SHEET TAB 6: API DOCS FOR THIS WEBSITE */}
+              {sheetSubTab === "docs" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white block">
+                        ইন্টিগ্রেশন গাইড — {selectedSiteForSheet.name}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const guideText = `=== Liku Media SMS Integration Guide ===
+Website: ${selectedSiteForSheet.name}
+Domain: ${selectedSiteForSheet.domain || "N/A"}
+API Key: ${selectedSiteForSheet.apiKey}
+
+1. Floating Notice & Status Script Tag (HTML):
+<script src="${origin}/api/v1/sdk?api_key=${selectedSiteForSheet.apiKey}"></script>
+
+2. cURL Example (Send SMS):
+curl -X POST ${origin}/api/v1/send-sms \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "api_key": "${selectedSiteForSheet.apiKey}",
+    "msg": "Test Message",
+    "to": "8801800000000"
+  }'
+
+3. JavaScript (fetch) Example:
+async function sendSms() {
+  const res = await fetch("${origin}/api/v1/send-sms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: "${selectedSiteForSheet.apiKey}",
+      msg: "আপনার অর্ডারটি সফল হয়েছে।",
+      to: "8801800000000"
+    })
+  });
+  console.log(await res.json());
+}
+`;
+                          handleCopyDocSnippet(guideText, "sheet_full_guide");
+                        }}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-1 transition shadow"
+                      >
+                        {docCopiedSnippetId === "sheet_full_guide" ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" /> গাইড কপি হয়েছে!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" /> কপি গাইড ফাইল
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-3 bg-slate-900 rounded-xl border border-amber-500/30 space-y-2 text-xs">
+                      <span className="text-amber-400 font-bold block">
+                        ১-লাইনের ইউনিভার্সাল পপ-আপ নোটিশ স্ক্রিপ্ট ট্যাগ (SDK)
+                      </span>
+                      <pre className="p-2.5 bg-slate-950 rounded-lg text-[11px] font-mono text-emerald-300 overflow-x-auto select-all">
+{`<script src="${origin}/api/v1/sdk?api_key=${selectedSiteForSheet.apiKey}"></script>`}
+                      </pre>
+                    </div>
+
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-2 text-xs">
+                      <span className="text-indigo-400 font-bold block">cURL Command (Send SMS)</span>
+                      <pre className="p-2.5 bg-slate-950 rounded-lg text-[11px] font-mono text-slate-300 overflow-x-auto select-all">
+{`curl -X POST ${origin}/api/v1/send-sms \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "api_key": "${selectedSiteForSheet.apiKey}",
+    "msg": "Hello! OTP is 123456",
+    "to": "8801800000000"
+  }'`}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sheet Footer */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-end">
+              <button
+                onClick={() => setSelectedSiteForSheet(null)}
+                className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold"
+              >
+                শীট বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: PDF REPORT EXPORT FILTER MODAL */}
+      {showPdfModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-5 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-rose-500" /> এসএমএস স্টেটমেন্ট পিডিএফ ডাউনলোড
+              </h3>
+              <button onClick={() => setShowPdfModal(false)} className="text-slate-400 hover:text-white">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Filter Type Buttons */}
+              <div>
+                <label className="block font-bold text-slate-300 mb-2">ফিল্টারিং মোড নির্বাচন করুন</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPdfFilterType("all")}
+                    className={`py-2 px-2.5 rounded-xl font-bold border transition text-center text-xs ${
+                      pdfFilterType === "all"
+                        ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                        : "bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800"
+                    }`}
+                  >
+                    ♾️ অল টাইম
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPdfFilterType("month")}
+                    className={`py-2 px-2.5 rounded-xl font-bold border transition text-center text-xs ${
+                      pdfFilterType === "month"
+                        ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                        : "bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800"
+                    }`}
+                  >
+                    📅 মাসভিত্তিক
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPdfFilterType("year")}
+                    className={`py-2 px-2.5 rounded-xl font-bold border transition text-center text-xs ${
+                      pdfFilterType === "year"
+                        ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                        : "bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800"
+                    }`}
+                  >
+                    🗓️ বছরভিত্তিক
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPdfFilterType("custom")}
+                    className={`py-2 px-2.5 rounded-xl font-bold border transition text-center text-xs ${
+                      pdfFilterType === "custom"
+                        ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                        : "bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800"
+                    }`}
+                  >
+                    📆 কাস্টম রেঞ্জ
+                  </button>
+                </div>
+              </div>
+
+              {/* Website Selector */}
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">ওয়েবসাইট</label>
+                <select
+                  value={pdfTargetSiteId}
+                  onChange={(e) => setPdfTargetSiteId(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-rose-500"
+                >
+                  <option value="all">সকল ওয়েবসাইট (All Websites)</option>
+                  {websites.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Month & Year Selectors */}
+              {pdfFilterType === "month" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium text-slate-300 mb-1">মাস (Month)</label>
+                    <select
+                      value={pdfMonth}
+                      onChange={(e) => setPdfMonth(Number(e.target.value))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-rose-500"
+                    >
+                      {[
+                        "জানুয়ারি (Jan)", "ফেব্রুয়ারি (Feb)", "মার্চ (Mar)", "এপ্রিল (Apr)", 
+                        "মে (May)", "জুন (Jun)", "জুলাই (Jul)", "আগস্ট (Aug)", 
+                        "সেপ্টেম্বর (Sep)", "অক্টোবর (Oct)", "নভেম্বর (Nov)", "ডিসেম্বর (Dec)"
+                      ].map((m, idx) => (
+                        <option key={idx + 1} value={idx + 1}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-medium text-slate-300 mb-1">বছর (Year)</label>
+                    <select
+                      value={pdfYear}
+                      onChange={(e) => setPdfYear(Number(e.target.value))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-rose-500"
+                    >
+                      {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((y) => (
+                        <option key={y} value={y}>
+                          {y}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Year Selector */}
+              {pdfFilterType === "year" && (
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">বছর (Year)</label>
+                  <select
+                    value={pdfYear}
+                    onChange={(e) => setPdfYear(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-rose-500"
+                  >
+                    {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Custom Date Range Selectors */}
+              {pdfFilterType === "custom" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium text-slate-300 mb-1">শুরুর তারিখ (Start Date)</label>
+                    <input
+                      type="date"
+                      value={pdfStartDate}
+                      onChange={(e) => setPdfStartDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-slate-300 mb-1">শেষের তারিখ (End Date)</label>
+                    <input
+                      type="date"
+                      value={pdfEndDate}
+                      onChange={(e) => setPdfEndDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPdfModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleGeneratePdfReport}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-rose-600/30 flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" /> পিডিএফ ডাউনলোড করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signature Footer */}
+      <footer className="pt-6 pb-2 text-center text-xs text-slate-500 border-t border-slate-800/60 font-mono flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>Liku Media Gateway Platform v2.4 • All Systems Operational</div>
+        <div>crafted with ❤️ in Rangpur</div>
+      </footer>
     </div>
   );
 }

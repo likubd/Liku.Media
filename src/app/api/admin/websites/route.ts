@@ -48,7 +48,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, domain, balance, ratePerSms, clientPhone } = body;
+    const { name, domain, balance, ratePerSms, clientPhone, noticeText, noticeType, noticeEnabled } = body;
 
     if (!name || name.trim() === "") {
       return NextResponse.json({ success: false, error: "Website name is required." }, { status: 400 });
@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
       totalSent: 0,
       totalSpent: 0,
       clientPhone: (clientPhone || "").trim(),
+      noticeText: noticeText || "",
+      noticeType: noticeType || "info",
+      noticeEnabled: Boolean(noticeEnabled),
       createdAt: nowIso,
       updatedAt: nowIso,
     };
@@ -96,7 +99,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, action, status, balance, ratePerSms } = body;
+    const { id, action, status, balance, ratePerSms, noticeText, noticeType, noticeEnabled } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Missing website id" }, { status: 400 });
@@ -122,12 +125,19 @@ export async function PATCH(req: NextRequest) {
       updatePayload.balance = Number(balance);
     } else if (action === "update_rate" && ratePerSms !== undefined) {
       updatePayload.ratePerSms = Number(ratePerSms);
+    } else if (action === "update_notice") {
+      if (noticeText !== undefined) updatePayload.noticeText = noticeText;
+      if (noticeType !== undefined) updatePayload.noticeType = noticeType;
+      if (noticeEnabled !== undefined) updatePayload.noticeEnabled = Boolean(noticeEnabled);
     } else if (action === "regenerate_key") {
       updatePayload.apiKey = generateApiKey();
     } else {
       if (status) updatePayload.status = status;
       if (balance !== undefined) updatePayload.balance = Number(balance);
       if (ratePerSms !== undefined) updatePayload.ratePerSms = Number(ratePerSms);
+      if (noticeText !== undefined) updatePayload.noticeText = noticeText;
+      if (noticeType !== undefined) updatePayload.noticeType = noticeType;
+      if (noticeEnabled !== undefined) updatePayload.noticeEnabled = Boolean(noticeEnabled);
     }
 
     const updatedSite = { ...currentSite, ...updatePayload };

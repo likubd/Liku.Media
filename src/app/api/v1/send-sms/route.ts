@@ -118,15 +118,33 @@ async function handleSendSms(params: {
 
   // 3. Verify Account Status if website key
   if (!isMasterKey && websiteDoc) {
+    if (websiteDoc.status === "blocked") {
+      return NextResponse.json(
+        { 
+          error: 420, 
+          msg: "Account is blocked (ব্লকড)। কাস্টমার সহায়তা সেন্টারে যোগাযোগ করুন।",
+          notice: websiteDoc.noticeEnabled ? { text: websiteDoc.noticeText, type: websiteDoc.noticeType } : null
+        },
+        { status: 403 }
+      );
+    }
     if (websiteDoc.status === "paused") {
       return NextResponse.json(
-        { error: 411, msg: "Account is paused (পজ করা রয়েছে)। মেসেজ পাঠানো যাবে না।" },
+        { 
+          error: 411, 
+          msg: "Account is paused (পজ করা রয়েছে)। মেসেজ পাঠানো যাবে না।",
+          notice: websiteDoc.noticeEnabled ? { text: websiteDoc.noticeText, type: websiteDoc.noticeType } : null
+        },
         { status: 403 }
       );
     }
     if (websiteDoc.status === "terminated") {
       return NextResponse.json(
-        { error: 403, msg: "Account has been terminated (টারমিনেট করা হয়েছে)। Access denied." },
+        { 
+          error: 403, 
+          msg: "Account has been terminated (টারমিনেট করা হয়েছে)। Access denied.",
+          notice: websiteDoc.noticeEnabled ? { text: websiteDoc.noticeText, type: websiteDoc.noticeType } : null
+        },
         { status: 403 }
       );
     }
@@ -287,9 +305,15 @@ async function handleSendSms(params: {
   // 8. Return Response
   if (isSuccess) {
     const remainingBalance = !isMasterKey && websiteDoc ? Number((websiteDoc.balance - totalCost).toFixed(4)) : null;
+    const noticeObj = !isMasterKey && websiteDoc && websiteDoc.noticeEnabled ? {
+      text: websiteDoc.noticeText || "",
+      type: websiteDoc.noticeType || "info"
+    } : null;
+
     return NextResponse.json({
       error: 0,
       msg: providerResult.msg || "Request successfully submitted",
+      ...(noticeObj ? { notice: noticeObj } : {}),
       data: {
         request_id: providerResult.data?.request_id || 0,
         sms_parts: totalParts,
