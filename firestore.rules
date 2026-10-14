@@ -60,5 +60,10 @@ service cloud.firestore {
     match /sms_settings/{settingId} {
       allow read, write: if true;
     }
+
+    // Invoices Collection
+    match /invoices/{invoiceId} {
+      allow read, write: if true;
+    }
   }
 }
