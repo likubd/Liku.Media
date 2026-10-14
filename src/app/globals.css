@@ -197,3 +197,16 @@ body {
 .animate-border-spin {
   animation: border-spin 4s linear infinite;
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}

@@ -29,7 +29,7 @@ export default function Header() {
 
   const showCapsule = isScrolled || !isHomePage;
 
-  if (pathname === '/login' || pathname === '/dashboard') return null;
+  if (pathname === '/login' || pathname === '/dashboard' || pathname?.startsWith('/invoice')) return null;
 
   return (
     <motion.div 

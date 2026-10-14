@@ -7,6 +7,7 @@ import Logo from "@/components/img/likumedia-logo.svg";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { SmsManagement } from "@/components/sms/sms-management";
+import { InvoiceManagement } from "@/components/invoice/invoice-management";
 import {
   LayoutDashboard,
   Smartphone,
@@ -32,12 +33,13 @@ import {
   Key,
   History,
   Code,
-  Settings
+  Settings,
+  FileText
 } from "lucide-react";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ phone: string; role: string; name: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "sms" | "users" | "messages">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "sms" | "users" | "messages">("overview");
   const [smsSubTab, setSmsSubTab] = useState<"overview" | "send" | "websites" | "logs" | "docs" | "settings">("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -216,6 +218,7 @@ export default function DashboardPage() {
 
   const navigationItems = [
     { id: "overview", label: "ওভারভিউ (Overview)", icon: LayoutDashboard },
+    { id: "invoices", label: "ইনভয়েস বিলিং (Invoices)", icon: FileText },
     { id: "sms", label: "এসএমএস গেটওয়ে (SMS)", icon: Smartphone },
     ...(user.role === "super_admin" || user.role === "admin"
       ? [
@@ -392,6 +395,7 @@ export default function DashboardPage() {
             <div>
               <h1 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
                 {activeTab === "overview" && "সিস্টেম ও কন্ট্রোল ওভারভিউ"}
+                {activeTab === "invoices" && "ইনভয়েস জেনারেটর ও বিলিং সিস্টেম"}
                 {activeTab === "sms" && "SMS Gateway Management"}
                 {activeTab === "users" && "ইউজার ডিরেক্টরি"}
                 {activeTab === "messages" && "কাস্টমার প্রস্তাবনা ও ইনবক্স"}
@@ -475,10 +479,30 @@ export default function DashboardPage() {
               </div>
 
               {/* Quick Actions Navigation Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div
+                  onClick={() => setActiveTab("invoices")}
+                  className="bg-gradient-to-br from-slate-900 to-rose-950/40 border border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-rose-500/40 transition group relative overflow-hidden shadow-md"
+                >
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="p-3 bg-rose-600/20 text-rose-400 rounded-xl border border-rose-500/30 group-hover:scale-105 transition">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white group-hover:text-rose-300 transition">
+                        Invoice Generator & Billing
+                      </h3>
+                      <p className="text-xs text-slate-400">প্রফেশনাল ইনভয়েস তৈরি, প্রিন্ট ও পেমেন্ট ট্র্যাকিং</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end text-xs font-semibold text-rose-400 gap-1 pt-2">
+                    ইনভয়েস ম্যানেজারে প্রবেশ করুন <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+
                 <div
                   onClick={() => setActiveTab("sms")}
-                  className="bg-gradient-to-br from-slate-900 to-indigo-950/40 border border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-indigo-500/40 transition group relative overflow-hidden"
+                  className="bg-gradient-to-br from-slate-900 to-indigo-950/40 border border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-indigo-500/40 transition group relative overflow-hidden shadow-md"
                 >
                   <div className="flex items-center gap-4 mb-3">
                     <div className="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30 group-hover:scale-105 transition">
@@ -486,9 +510,9 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition">
-                        SMS Gateway & Website Multi-Tenant
+                        SMS Gateway & Multi-Tenant
                       </h3>
-                      <p className="text-xs text-slate-400">এপিআই কী তৈরি, ব্যালেন্স চার্জ রিচার্জ ও বাল্ক এসএমএস</p>
+                      <p className="text-xs text-slate-400">এপিআই কী তৈরি, ব্যালেন্স রিচার্জ ও বাল্ক এসএমএস</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-end text-xs font-semibold text-indigo-400 gap-1 pt-2">
@@ -498,7 +522,7 @@ export default function DashboardPage() {
 
                 <div
                   onClick={() => setActiveTab("users")}
-                  className="bg-gradient-to-br from-slate-900 to-slate-900 border border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-slate-700 transition group relative overflow-hidden"
+                  className="bg-gradient-to-br from-slate-900 to-slate-900 border border-slate-800 p-6 rounded-2xl cursor-pointer hover:border-slate-700 transition group relative overflow-hidden shadow-md"
                 >
                   <div className="flex items-center gap-4 mb-3">
                     <div className="p-3 bg-slate-800 text-slate-300 rounded-xl border border-slate-700 group-hover:scale-105 transition">
@@ -554,7 +578,17 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 2: SMS GATEWAY MANAGEMENT */}
+          {/* TAB 2: INVOICES MANAGEMENT */}
+          {activeTab === "invoices" && (
+            <div className="space-y-6">
+              <InvoiceManagement
+                platformUsers={platformUsers}
+                userRole={user.role}
+              />
+            </div>
+          )}
+
+          {/* TAB 3: SMS GATEWAY MANAGEMENT */}
           {activeTab === "sms" && (
             <div className="space-y-6">
               <SmsManagement
