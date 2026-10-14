@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Logo from "@/components/img/likumedia-logo.svg";
+import { LIKU_LOGO_BASE64 } from "@/lib/logo-base64";
 import {
   Invoice,
   InvoiceItem,
@@ -144,10 +145,7 @@ export function InvoiceManagement({ platformUsers = [], userRole = "super_admin"
   });
 
   const getLogoUrl = () => {
-    if (typeof window !== "undefined") {
-      return window.location.origin + Logo.src;
-    }
-    return Logo.src;
+    return LIKU_LOGO_BASE64;
   };
 
   // Fetch Invoices
@@ -1272,11 +1270,11 @@ export function InvoiceManagement({ platformUsers = [], userRole = "super_admin"
                     <div className="flex items-start justify-between border-b-2 border-slate-200 pb-3">
                       <div className="space-y-1">
                         <div className="logo-box">
-                          <Image
-                            src={Logo}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={LIKU_LOGO_BASE64}
                             alt="Liku Media"
-                            className="h-8 sm:h-9 w-auto object-contain"
-                            priority
+                            className="h-8 sm:h-9 w-auto object-contain block"
                           />
                         </div>
                         <div className="text-[10px] text-slate-500">
@@ -1509,11 +1507,11 @@ export function InvoiceManagement({ platformUsers = [], userRole = "super_admin"
               <div className="flex items-start justify-between border-b-2 border-slate-200 pb-3">
                 <div className="space-y-1">
                   <div className="logo-box">
-                    <Image
-                      src={Logo}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={LIKU_LOGO_BASE64}
                       alt="Liku Media"
-                      className="h-8 sm:h-9 w-auto object-contain"
-                      priority
+                      className="h-8 sm:h-9 w-auto object-contain block"
                     />
                   </div>
                   <div className="text-[10px] text-slate-500">

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
-import Logo from "@/components/img/likumedia-logo.svg";
+import React, { useState, useEffect } from "react";
+import QRCode from "qrcode";
 import { Invoice, formatCurrency } from "@/lib/invoice";
+import { LIKU_LOGO_BASE64 } from "@/lib/logo-base64";
 import { Download, AlertCircle, Loader2, Check } from "lucide-react";
 
 interface InvoiceClientViewProps {
@@ -15,6 +15,25 @@ export function InvoiceClientView({ initialInvoice }: InvoiceClientViewProps) {
   const [invoice] = useState<Invoice | null>(initialInvoice);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+
+  const verifyUrl = invoice
+    ? `https://liku.media/invoice/${invoice.id || invoice.invoiceNumber}`
+    : "";
+
+  useEffect(() => {
+    if (!verifyUrl) return;
+    QRCode.toDataURL(verifyUrl, {
+      margin: 1,
+      width: 200,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => setQrCodeDataUrl(url))
+      .catch((err) => console.error("Error generating QR data URL:", err));
+  }, [verifyUrl]);
 
   const handleDownloadPdf = async () => {
     if (!invoice || isDownloading) return;
@@ -27,47 +46,28 @@ export function InvoiceClientView({ initialInvoice }: InvoiceClientViewProps) {
     let exportContainer: HTMLElement | null = null;
 
     try {
-      // 1. Ensure html2pdf is loaded into window
-      let html2pdfInstance = (window as any).html2pdf;
-      if (!html2pdfInstance) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "/js/html2pdf.bundle.min.js";
-          script.onload = () => resolve();
-          script.onerror = () => {
-            const fallbackScript = document.createElement("script");
-            fallbackScript.src = "https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
-            fallbackScript.onload = () => resolve();
-            fallbackScript.onerror = reject;
-            document.head.appendChild(fallbackScript);
-          };
-          document.head.appendChild(script);
-        });
-        html2pdfInstance = (window as any).html2pdf;
-      }
+      // 1. Dynamic import of official jspdf and html2canvas packages
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
 
-      if (!html2pdfInstance) {
-        throw new Error("html2pdf library could not be loaded");
-      }
-
-      // 2. Create isolated off-screen clone with exact fixed A4 width (800px)
-      // This completely prevents responsive/centered clipping or viewport offsets!
+      // 2. Clone the invoice into an isolated 794px (exact A4 @ 96 DPI) desktop sheet
+      // This completely eliminates any mobile-wrapping or viewport offset issues
       exportContainer = document.createElement("div");
       exportContainer.style.position = "fixed";
       exportContainer.style.left = "-9999px";
       exportContainer.style.top = "0";
-      exportContainer.style.width = "800px";
+      exportContainer.style.width = "794px";
       exportContainer.style.background = "#ffffff";
       exportContainer.style.margin = "0";
       exportContainer.style.padding = "0";
       exportContainer.style.zIndex = "-1000";
 
       const clone = cardElement.cloneNode(true) as HTMLElement;
-      clone.style.width = "800px";
-      clone.style.maxWidth = "800px";
-      clone.style.minWidth = "800px";
+      clone.style.width = "794px";
+      clone.style.maxWidth = "794px";
+      clone.style.minWidth = "794px";
       clone.style.margin = "0";
-      clone.style.padding = "36px 40px";
+      clone.style.padding = "32px 36px";
       clone.style.borderRadius = "0";
       clone.style.boxShadow = "none";
       clone.style.border = "none";
@@ -77,39 +77,54 @@ export function InvoiceClientView({ initialInvoice }: InvoiceClientViewProps) {
       exportContainer.appendChild(clone);
       document.body.appendChild(exportContainer);
 
-      // Wait for any images inside the clone to be ready
-      const cloneImages = Array.from(clone.querySelectorAll("img"));
-      await Promise.all(
-        cloneImages.map((img) => {
-          if (img.complete) return Promise.resolve();
-          return new Promise((res) => {
-            img.onload = res;
-            img.onerror = res;
-          });
-        })
-      );
-      await new Promise((resolve) => setTimeout(resolve, 60));
+      // Brief layout stabilization
+      await new Promise((resolve) => setTimeout(resolve, 80));
 
-      const opt = {
-        margin: [8, 8, 8, 8],
-        filename: `Invoice-${invoice.invoiceNumber}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0,
-          width: 800,
-          windowWidth: 800,
-        },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
+      // 3. Capture with html2canvas directly at 2.5x resolution for print-sharp typography
+      const canvas = await html2canvas(clone, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: 794,
+      });
 
-      // Generate & save directly to Downloads folder
-      await html2pdfInstance().set(opt).from(clone).save();
+      // 4. Create A4 jsPDF instance (210mm x 297mm)
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 10; // Exactly 10mm margins on both left and right
+      const contentWidth = pageWidth - margin * 2; // Exactly 190mm wide, perfectly centered!
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+
+      if (contentHeight <= pageHeight - margin * 2) {
+        // Fits on a single A4 page
+        pdf.addImage(imgData, "JPEG", margin, margin, contentWidth, contentHeight);
+      } else {
+        // Multi-page slicing if invoice items overflow A4 height
+        let heightLeft = contentHeight;
+        let position = margin;
+        pdf.addImage(imgData, "JPEG", margin, position, contentWidth, contentHeight);
+        heightLeft -= pageHeight - margin * 2;
+
+        while (heightLeft > 0) {
+          position = margin - (contentHeight - heightLeft);
+          pdf.addPage();
+          pdf.addImage(imgData, "JPEG", margin, position, contentWidth, contentHeight);
+          heightLeft -= pageHeight - margin * 2;
+        }
+      }
+
+      // 5. Save directly to Downloads folder
+      pdf.save(`Invoice-${invoice.invoiceNumber}.pdf`);
 
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 2500);
@@ -142,10 +157,6 @@ export function InvoiceClientView({ initialInvoice }: InvoiceClientViewProps) {
 
   const isPaid = invoice.status === "paid" || invoice.dueAmount === 0;
   const isOverdue = invoice.status === "overdue";
-  // Point to local same-origin proxy to eliminate CORS taint on canvas
-  const qrUrl = `/api/qr?data=${encodeURIComponent(
-    `https://liku.media/invoice/${invoice.id || invoice.invoiceNumber}`
-  )}`;
 
   return (
     <div className="min-h-screen bg-neutral-100 text-slate-900 font-sans py-4 sm:py-8 px-3 sm:px-6 flex flex-col items-center print:bg-white print:p-0 print:m-0 print:min-h-0">
@@ -195,11 +206,11 @@ export function InvoiceClientView({ initialInvoice }: InvoiceClientViewProps) {
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b-2 border-slate-200 pb-4">
           <div className="space-y-1">
             <div className="logo-box">
-              <Image
-                src={Logo}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={LIKU_LOGO_BASE64}
                 alt="Liku Media"
-                className="h-8 sm:h-9 w-auto object-contain"
-                priority
+                className="h-8 sm:h-9 w-auto object-contain block"
               />
             </div>
             <div className="text-[10.5px] text-slate-500 leading-relaxed font-sans pt-0.5">
@@ -393,12 +404,15 @@ export function InvoiceClientView({ initialInvoice }: InvoiceClientViewProps) {
             <div className="text-center space-y-0.5">
               <div className="border border-slate-200 p-0.5 rounded bg-white inline-block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrUrl}
-                  alt="Verify Invoice"
-                  className="w-12 h-12 object-contain"
-                  crossOrigin="anonymous"
-                />
+                {qrCodeDataUrl ? (
+                  <img
+                    src={qrCodeDataUrl}
+                    alt="Verify Invoice"
+                    className="w-12 h-12 object-contain"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-slate-100 animate-pulse rounded" />
+                )}
               </div>
               <div className="text-[8px] text-slate-400 font-mono">Scan to Verify</div>
             </div>

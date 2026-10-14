@@ -1,6 +1,8 @@
 import { Invoice, formatCurrency } from "@/lib/invoice";
+import { LIKU_LOGO_BASE64 } from "@/lib/logo-base64";
 
 export function printInvoicePdf(invoice: Invoice, logoUrl?: string) {
+  const finalLogo = logoUrl || LIKU_LOGO_BASE64;
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     alert("Pop-up is blocked. Please allow pop-ups in your browser to view the invoice.");
@@ -374,8 +376,8 @@ export function printInvoicePdf(invoice: Invoice, logoUrl?: string) {
       <div>
         <div class="logo-box">
           ${
-            logoUrl
-              ? `<img src="${logoUrl}" alt="Liku Media Logo" />`
+            finalLogo
+              ? `<img src="${finalLogo}" alt="Liku Media Logo" />`
               : `<span style="font-weight:900; font-size:22px; color:#0f172a;">Liku<span style="color:#e11d48;">.</span>Media</span>`
           }
         </div>
