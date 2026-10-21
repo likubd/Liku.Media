@@ -42,12 +42,16 @@ export function printInvoicePdf(invoice: Invoice, logoUrl?: string) {
 
   const statusStyle = statusColors[status] || statusColors.pending;
 
+  const isChallan = invoice.type === "challan" || invoice.invoiceNumber?.startsWith("CH-") || invoice.title?.toLowerCase().includes("challan") || invoice.title?.includes("চালান");
+  const docTypeLabel = isChallan ? "DELIVERY CHALLAN (চালান)" : "INVOICE";
+  const docTitle = isChallan ? `Challan #${invoiceNumber}` : `Invoice #${invoiceNumber}`;
+
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Invoice #${invoiceNumber} - ${client.name || "Client"}</title>
+  <title>${docTitle} - ${client.name || "Client"}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     
@@ -387,21 +391,25 @@ export function printInvoicePdf(invoice: Invoice, logoUrl?: string) {
       </div>
 
       <div class="invoice-meta">
-        <div class="invoice-title">INVOICE</div>
+        <div class="invoice-title">${docTypeLabel}</div>
         <div class="invoice-number"># ${invoiceNumber}</div>
         <div class="dates-strip">
           <span>Date: <strong>${date}</strong></span>
           <span>•</span>
-          <span>Due: <strong>${dueDate}</strong></span>
-          <span class="status-badge">${status.toUpperCase()}</span>
+          <span>${isChallan ? "Delivery:" : "Due:"} <strong>${dueDate}</strong></span>
+          ${
+            isChallan
+              ? `<span class="status-badge" style="background:#ecfeff; border-color:#a5f3fc; color:#0891b2;">চালান / CHALLAN</span>`
+              : `<span class="status-badge">${status.toUpperCase()}</span>`
+          }
         </div>
       </div>
     </div>
 
-    <!-- Billed To Strip -->
+    <!-- Billed / Delivered To Strip -->
     <div class="billed-to-card">
       <div>
-        <div class="section-label">BILLED TO:</div>
+        <div class="section-label">${isChallan ? "DELIVERED TO / গ্রহীতা:" : "BILLED TO:"}</div>
         <div class="client-name">${client.name || "Client Name"}</div>
         ${client.company ? `<div class="client-company">${client.company}</div>` : ""}
         <div class="client-details">
@@ -412,12 +420,61 @@ export function printInvoicePdf(invoice: Invoice, logoUrl?: string) {
       </div>
 
       <div class="payment-method-box">
-        <div class="section-label" style="color: #64748b;">PAYMENT METHOD:</div>
-        <div class="payment-method-val">${paymentMethod || "bKash / Bank Transfer"}</div>
+        <div class="section-label" style="color: #64748b;">${isChallan ? "DISPATCH / পরিবহন:" : "PAYMENT METHOD:"}</div>
+        <div class="payment-method-val">${paymentMethod || (isChallan ? "কুরিয়ার / হ্যান্ড ডেলিভারি" : "bKash / Bank Transfer")}</div>
       </div>
     </div>
 
     <!-- Line Items Table -->
+    ${
+      isChallan
+        ? `
+    <!-- Challan Line Items (No Prices) -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 8%;">#</th>
+          <th style="width: 72%;">ITEM / SERVICE DESCRIPTION (বিবরণ)</th>
+          <th style="width: 20%; text-align: center;">QUANTITY / পরিমাণ</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items
+          .map(
+            (item, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>
+              <div class="item-desc">${item.description}</div>
+            </td>
+            <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 13px;">${item.quantity}</td>
+          </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
+
+    <!-- Summary (Challan: Total Quantity Only) -->
+    <div class="summary-grid">
+      <div class="instructions-card" style="flex: 2;">
+        <strong>Delivery & Dispatch Details (সরবরাহের বিবরণ):</strong>
+        <div class="instructions-content">${paymentDetails || "পণ্য যথাযথভাবে অক্ষত অবস্থায় বুঝে নেওয়ার জন্য অনুরোধ করা হচ্ছে।"}</div>
+      </div>
+
+      <div class="totals-card" style="width: 220px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px;">Total Quantity / মোট আইটেম:</div>
+        <div style="font-size: 22px; font-weight: 900; color: #0f172a; font-family: monospace;">
+          ${items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)} <span style="font-size: 12px; font-weight: 600; color: #64748b;">টি (Items)</span>
+        </div>
+        <div style="font-size: 9.5px; color: #0284c7; font-weight: 600; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1;">
+          ✓ ডেলিভারি চালান (কোনো মূল্য অন্তর্ভুক্ত নয়)
+        </div>
+      </div>
+    </div>
+    `
+        : `
+    <!-- Invoice Line Items (With Unit Price & Amount) -->
     <table>
       <thead>
         <tr>
@@ -494,6 +551,8 @@ export function printInvoicePdf(invoice: Invoice, logoUrl?: string) {
         </div>
       </div>
     </div>
+    `
+    }
 
     <!-- Footer: Terms and Authorized Signature & Verification QR -->
     <div class="footer-bar">
@@ -503,6 +562,17 @@ export function printInvoicePdf(invoice: Invoice, logoUrl?: string) {
       </div>
 
       <div style="display: flex; align-items: flex-end; gap: 24px;">
+        ${
+          isChallan
+            ? `
+        <div class="signature-box" style="text-align: left;">
+          <div style="height: 28px;"></div>
+          <div class="signature-line">Receiver's Signature (গ্রহীতার স্বাক্ষর)</div>
+          <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">Date & Seal / তারিখ ও সীল</div>
+        </div>
+        `
+            : ""
+        }
         <div style="text-align: center;">
           <div style="border: 1px solid #e2e8f0; padding: 3px; border-radius: 6px; background: #ffffff; display: inline-block;">
             <img 

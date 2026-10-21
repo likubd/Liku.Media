@@ -1,0 +1,75 @@
+[debug] [2026-10-14T04:25:40.242Z] ----------------------------------------------------------------------
+[debug] [2026-10-14T04:25:40.243Z] Command:       /usr/local/bin/node /Users/likubd/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase deploy --only firestore:rules --project likumediabd
+[debug] [2026-10-14T04:25:40.244Z] CLI Version:   15.33.0
+[debug] [2026-10-14T04:25:40.244Z] Platform:      darwin
+[debug] [2026-10-14T04:25:40.244Z] Node Version:  v22.11.0
+[debug] [2026-10-14T04:25:40.244Z] Detected Agent: antigravity
+[debug] [2026-10-14T04:25:40.244Z] Time:          Wed Oct 14 2026 10:25:40 GMT+0600 (Bangladesh Standard Time)
+[debug] [2026-10-14T04:25:40.244Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-14T04:25:40.877Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-14T04:25:40.877Z] > authorizing via signed-in user (likumia03@gmail.com)
+[debug] [2026-10-14T04:25:40.877Z] [iam] checking project likumediabd for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-14T04:25:40.881Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:40.881Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:40.882Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/likumediabd:testIamPermissions [none]
+[debug] [2026-10-14T04:25:40.882Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/likumediabd:testIamPermissions  x-goog-user-project=likumediabd
+[debug] [2026-10-14T04:25:40.882Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/likumediabd:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-14T04:25:48.010Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/likumediabd:testIamPermissions 200
+[debug] [2026-10-14T04:25:48.011Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/likumediabd:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'likumediabd'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-14T04:25:48.014Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:48.014Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:48.014Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/likumediabd/databases/(default) [none]
+[debug] [2026-10-14T04:25:48.409Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/likumediabd/databases/(default) 200
+[debug] [2026-10-14T04:25:48.410Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/likumediabd/databases/(default) {"name":"projects/likumediabd/databases/(default)","uid":"c3183572-bb17-453a-a584-5ca2b0239eab","createTime":"2026-07-07T13:14:47.617995Z","updateTime":"2026-07-07T13:14:47.617995Z","locationId":"asia-southeast1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-14T03:25:48.365640Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"zas","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IKf62JrVuJcDMJCbnsXNipcD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-14T04:25:48.413Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:48.413Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:48.413Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/likumediabd:test [none]
+[debug] [2026-10-14T04:25:48.413Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/likumediabd:test [omitted]
+[debug] [2026-10-14T04:25:50.084Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/likumediabd:test 200
+[debug] [2026-10-14T04:25:50.085Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/likumediabd:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-14T04:25:50.087Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:50.088Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:50.088Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/likumediabd/releases pageSize=10&pageToken=
+[debug] [2026-10-14T04:25:51.435Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/likumediabd/releases 200
+[debug] [2026-10-14T04:25:51.436Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/likumediabd/releases {"releases":[{"name":"projects/likumediabd/releases/cloud.firestore","rulesetName":"projects/likumediabd/rulesets/8b410e36-f353-483e-9887-ed5426ec12c7","createTime":"2026-07-07T13:14:52.803294Z","updateTime":"2026-08-16T19:07:22.490329Z"}]}
+[debug] [2026-10-14T04:25:51.436Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:51.437Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:51.437Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/likumediabd/rulesets/8b410e36-f353-483e-9887-ed5426ec12c7 [none]
+[debug] [2026-10-14T04:25:52.940Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/likumediabd/rulesets/8b410e36-f353-483e-9887-ed5426ec12c7 200
+[debug] [2026-10-14T04:25:52.940Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/likumediabd/rulesets/8b410e36-f353-483e-9887-ed5426ec12c7 [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-10-14T04:25:52.943Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:52.943Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:52.943Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/likumediabd/rulesets [none]
+[debug] [2026-10-14T04:25:52.943Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/likumediabd/rulesets [omitted]
+[debug] [2026-10-14T04:25:54.379Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/likumediabd/rulesets 200
+[debug] [2026-10-14T04:25:54.379Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/likumediabd/rulesets {"name":"projects/likumediabd/rulesets/c664ba12-68a8-4340-b159-e4fa390d278f","source":{"files":[{"content":"rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    \n    match /users/{phoneId} {\n      // Allow read access for credentials check\n      allow read: if true;\n      \n      // Allow creation with strict validation\n      allow create: if \n        phoneId == request.resource.data.phone &&\n        request.resource.data.name is string &&\n        request.resource.data.name.size() > 0 &&\n        request.resource.data.name.size() < 100 &&\n        request.resource.data.pin is string &&\n        request.resource.data.pin.size() == 6 &&\n        request.resource.data.role is string &&\n        request.resource.data.role in ['super_admin', 'admin', 'manager', 'client'] &&\n        (\n          (request.resource.data.role == 'super_admin' && phoneId == '+880 1850290529' && request.resource.data.pin == '199800') ||\n          (request.resource.data.role != 'super_admin' && phoneId != '+880 1850290529')\n        );\n        \n      // Allow updates with strict validation (preventing privilege escalation)\n      allow update: if\n        request.resource.data.phone == resource.data.phone &&\n        request.resource.data.name is string &&\n        request.resource.data.name.size() > 0 &&\n        request.resource.data.name.size() < 100 &&\n        request.resource.data.pin is string &&\n        request.resource.data.pin.size() == 6 &&\n        request.resource.data.role is string &&\n        request.resource.data.role in ['super_admin', 'admin', 'manager', 'client'] &&\n        (\n          (request.resource.data.role == resource.data.role) || \n          (resource.data.role == 'super_admin') \n        );\n\n      // Allow deletion only if not deleting the main Super Admin account\n      allow delete: if phoneId != '+880 1850290529';\n    }\n\n    match /messages/{messageId} {\n      // Allow public creation of contact messages\n      allow create: if true;\n      \n      // Allow read and deletion for dashboard administration\n      allow read, delete: if true;\n    }\n\n    // SMS Gateway Collections\n    match /sms_websites/{websiteId} {\n      allow read, write: if true;\n    }\n\n    match /sms_logs/{logId} {\n      allow read, write: if true;\n    }\n\n    match /sms_settings/{settingId} {\n      allow read, write: if true;\n    }\n\n    // Invoices Collection\n    match /invoices/{invoiceId} {\n      allow read, write: if true;\n    }\n  }\n}\n","name":"firestore.rules"}]},"createTime":"2026-10-14T04:25:54.217711Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-10-14T04:25:54.379Z] [rules] created ruleset projects/likumediabd/rulesets/c664ba12-68a8-4340-b159-e4fa390d278f
+[debug] [2026-10-14T04:25:54.380Z] [rules] releasing cloud.firestore with ruleset projects/likumediabd/rulesets/c664ba12-68a8-4340-b159-e4fa390d278f
+[debug] [2026-10-14T04:25:54.380Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:54.381Z] Checked if tokens are valid: true, expires at: 1791955508870
+[debug] [2026-10-14T04:25:54.381Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/likumediabd/releases/cloud.firestore [none]
+[debug] [2026-10-14T04:25:54.381Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/likumediabd/releases/cloud.firestore {"release":{"name":"projects/likumediabd/releases/cloud.firestore","rulesetName":"projects/likumediabd/rulesets/c664ba12-68a8-4340-b159-e4fa390d278f"}}
+[debug] [2026-10-14T04:25:55.850Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/likumediabd/releases/cloud.firestore 200
+[debug] [2026-10-14T04:25:55.850Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/likumediabd/releases/cloud.firestore {"name":"projects/likumediabd/releases/cloud.firestore","rulesetName":"projects/likumediabd/rulesets/c664ba12-68a8-4340-b159-e4fa390d278f","createTime":"2026-07-07T13:14:52.803294Z","updateTime":"2026-10-14T04:25:55.686516Z"}
+[debug] [2026-10-14T04:25:55.850Z] [rules] updated release projects/likumediabd/releases/cloud.firestore
+[info] ✔  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/likumediabd/overview
+[debug] [2026-10-14T04:26:04.159Z] Error: Timed out.
+    at Timeout.<anonymous> (/Users/likubd/.npm/_npx/ba4f1959e38407b5/node_modules/firebase-tools/lib/utils.js:298:49)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[error] 
+[error] Error: An unexpected error has occurred.

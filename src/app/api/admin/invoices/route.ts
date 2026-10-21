@@ -147,8 +147,9 @@ export async function POST(req: NextRequest) {
 
     const invoiceData: Invoice = {
       id: docId,
+      type: body.type || (invoiceNumber?.startsWith("CH-") ? "challan" : "invoice"),
       invoiceNumber,
-      title: title || "Service Invoice",
+      title: title || (body.type === "challan" ? "পণ্য ও ডেলিভারি চালান" : "Service Invoice"),
       createdAt: body.createdAt || nowIso,
       updatedAt: nowIso,
       date: date || nowIso.split("T")[0],
@@ -199,11 +200,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/admin/invoices (Quick Status / Payment Update)
+// PATCH /api/admin/invoices (Quick Status / Payment Update / Add Money)
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, status, paidAmount } = body;
+    const { id, status, paidAmount, addAmount, paymentMethod, trxId, note } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Invoice ID is required" }, { status: 400 });
@@ -219,13 +220,23 @@ export async function PATCH(req: NextRequest) {
 
     if (status) {
       invoice.status = status;
-      if (status === "paid" && paidAmount === undefined) {
+      if (status === "paid" && paidAmount === undefined && addAmount === undefined) {
         invoice.paidAmount = invoice.total;
         invoice.dueAmount = 0;
       }
     }
 
-    if (paidAmount !== undefined) {
+    if (addAmount !== undefined && Number(addAmount) > 0) {
+      const currentPaid = Number(invoice.paidAmount) || 0;
+      const newPaid = Math.min(invoice.total, currentPaid + Number(addAmount));
+      invoice.paidAmount = newPaid;
+      invoice.dueAmount = Math.max(0, invoice.total - newPaid);
+      if (invoice.dueAmount === 0) {
+        invoice.status = "paid";
+      } else if (invoice.status === "paid" && invoice.dueAmount > 0) {
+        invoice.status = "pending";
+      }
+    } else if (paidAmount !== undefined) {
       const validPaid = Math.max(0, Number(paidAmount));
       invoice.paidAmount = validPaid;
       invoice.dueAmount = Math.max(0, invoice.total - validPaid);
@@ -234,6 +245,16 @@ export async function PATCH(req: NextRequest) {
       } else if (invoice.dueAmount > 0 && invoice.status === "paid") {
         invoice.status = "pending";
       }
+    }
+
+    if (paymentMethod) {
+      invoice.paymentMethod = paymentMethod;
+    }
+
+    if (trxId || note) {
+      const timestamp = new Date().toLocaleDateString("en-GB");
+      const record = `• [${timestamp}] অ্যাড মানি: ৳${addAmount || paidAmount} (${paymentMethod || "Payment"})${trxId ? ` | TrxID: ${trxId}` : ""}${note ? ` | নোট: ${note}` : ""}`;
+      invoice.notes = invoice.notes ? `${invoice.notes}\n${record}` : record;
     }
 
     invoice.updatedAt = new Date().toISOString();

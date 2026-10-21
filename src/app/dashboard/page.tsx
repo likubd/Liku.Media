@@ -218,7 +218,7 @@ export default function DashboardPage() {
 
   const navigationItems = [
     { id: "overview", label: "ওভারভিউ (Overview)", icon: LayoutDashboard },
-    { id: "invoices", label: "ইনভয়েস বিলিং (Invoices)", icon: FileText },
+    { id: "invoices", label: "ইনভয়েস ও চালান (Invoices & Challan)", icon: FileText },
     { id: "sms", label: "এসএমএস গেটওয়ে (SMS)", icon: Smartphone },
     ...(user.role === "super_admin" || user.role === "admin"
       ? [

@@ -25,8 +25,11 @@ export interface InvoiceClient {
   address?: string;
 }
 
+export type DocumentType = "invoice" | "challan";
+
 export interface Invoice {
   id: string;
+  type?: DocumentType;
   invoiceNumber: string;
   title: string;
   createdAt: string;
@@ -67,6 +70,11 @@ export const DEFAULT_TERMS = `1. Payment is due within 7 business days from the 
 3. For billing inquiries, contact us at info@liku.media or +880 1850290529.
 4. Thank you for partnering with Liku Media!`;
 
+export const DEFAULT_CHALLAN_TERMS = `১. উল্লিখিত পণ্য ও সার্ভিসসমূহ সঠিক মান ও সন্তোষজনক অবস্থায় ডেলিভারি/হস্তান্তর করা হয়েছে।
+২. মালামাল বা ডেলিভারি সংক্রান্ত কোনো ত্রুটি থাকলে তা ২৪ ঘণ্টার মধ্যে অবগত করতে হবে।
+৩. এই চালান কপি ডেলিভারির চূড়ান্ত ও অফিশিয়াল প্রমাণপত্র হিসেবে গণ্য হবে।
+৪. যেকোনো জিজ্ঞাসায় আমাদের হেল্পলাইনে (+880 1850290529) যোগাযোগ করুন।`;
+
 export const DEFAULT_PAYMENT_DETAILS = `• bKash / Nagad (Personal): 01850290529
 • Bank Transfer: City Bank / BRAC Bank (Details on request)
 • Payment Reference: Please mention the Invoice Number`;
@@ -85,6 +93,15 @@ export function generateInvoiceNumber(existingCount = 0): string {
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
   const serial = String(existingCount + 1).padStart(3, "0");
   return `LM-${year}${month}-${serial || randomSuffix}`;
+}
+
+export function generateChallanNumber(existingCount = 0): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  const serial = String(existingCount + 1).padStart(3, "0");
+  return `CH-${year}${month}-${serial || randomSuffix}`;
 }
 
 export function calculateInvoiceTotals(
